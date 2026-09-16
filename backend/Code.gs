@@ -9,7 +9,7 @@
 const CONFIG = {
   // 前端呼叫用的 API Token，只是識別「這是自己人的網頁在呼叫」，
   // 不是傷患資料的存取權限（那個是案件共用驗證碼，見 IncidentActions.gs）
-  API_TOKEN: 'DAMS_2026_請自行更改',
+  API_TOKEN: 'DAMS_2026_nttccc5405',
 
   MASTER_SHEETS: {
     AMBULANCE: '救護車主檔',

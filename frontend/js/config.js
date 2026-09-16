@@ -3,8 +3,8 @@
 var APP = window.APP || {};
 
 APP.Config = {
-  API_TOKEN: 'DAMS_2026_請自行更改',
-  BASE_URL: 'https://script.google.com/macros/s/請貼上您的部署ID/exec',
+  API_TOKEN: 'DAMS_2026_nttccc5405',
+  BASE_URL: 'https://script.google.com/macros/s/AKfycbz9PCBCEodm7XiLFU6_sNA-EA0oaKBZLrRyulDvctBgYAFoD7dnB7X8P4FPvT5r2PA2tw/exec',
   POLL_INTERVAL_MS: 3000,
 };
 

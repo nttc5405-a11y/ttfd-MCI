@@ -3,3 +3,8 @@ Thumbs.db
 *.log
 .vscode/
 .idea/
+
+# Google Drive 桌面版同步這個資料夾時產生的捷徑存根檔，不是專案原始碼
+*.gsheet
+*.gdoc
+*.gslides
