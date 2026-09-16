@@ -1,0 +1,48 @@
+html, body { margin: 0; padding: 0; background: #f1f5f9; font-family: "Microsoft JhengHei", sans-serif; }
+.hidden { display: none !important; }
+
+.board-main { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 8px; flex: 1; overflow: hidden; }
+@media (max-width: 900px) {
+  .board-main { grid-template-columns: 1fr; overflow: auto; }
+}
+
+.board-col { background: #fff; border-radius: 8px; display: flex; flex-direction: column; min-height: 220px; border: 1px solid #e2e8f0; overflow: hidden; }
+.board-col-title { padding: 8px 12px; font-weight: 700; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+.board-col-body { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
+.empty-hint { color: #94a3b8; font-size: 13px; text-align: center; padding: 24px 8px; }
+
+.patient-card, .ambulance-card, .hospital-card {
+  border-radius: 8px; padding: 10px; cursor: grab; background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12); border-left: 6px solid #94a3b8;
+}
+.triage-red { border-left-color: #dc2626; background: #fef2f2; }
+.triage-yellow { border-left-color: #eab308; background: #fefce8; }
+.triage-green { border-left-color: #16a34a; background: #f0fdf4; }
+.triage-black { border-left-color: #1e293b; background: #f1f5f9; }
+
+.amb-status-STANDBY { border-left-color: #2563eb; background: #eff6ff; }
+.amb-status-DISPATCHED { border-left-color: #d97706; background: #fffbeb; }
+.amb-status-AT_HOSPITAL { border-left-color: #16a34a; background: #f0fdf4; }
+
+.hospital-card { cursor: pointer; }
+.hosp-status-AVAILABLE { border-left-color: #16a34a; }
+.hosp-status-LIMITED { border-left-color: #d97706; }
+.hosp-status-FULL { border-left-color: #dc2626; }
+.hosp-status-UNKNOWN { border-left-color: #94a3b8; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: flex; align-items: center; justify-content: center; padding: 12px; z-index: 50; }
+.modal-box { background: #fff; border-radius: 10px; padding: 16px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+
+#cameraVideo, #photoCanvas { width: 100%; max-height: 320px; background: #000; border-radius: 6px; touch-action: none; display: block; }
+#signatureCanvas { width: 100%; height: 160px; border: 1px solid #cbd5e1; border-radius: 6px; touch-action: none; background: #fff; display: block; }
+
+.color-btn { flex: 1; padding: 14px 0; border-radius: 8px; font-weight: 700; color: #fff; opacity: .55; border: 3px solid transparent; }
+.color-btn.ring-4 { opacity: 1; border-color: #1e293b; }
+#colorBtn_RED { background: #dc2626; }
+#colorBtn_YELLOW { background: #eab308; }
+#colorBtn_GREEN { background: #16a34a; }
+#colorBtn_BLACK { background: #1e293b; }
+
+input[type=text], input[type=number], input[type=password], textarea, select {
+  border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; width: 100%; box-sizing: border-box; font-size: 14px;
+}

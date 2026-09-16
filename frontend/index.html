@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>大量傷病患管理系統</title>
+  <script src="https://cdn.tailwindcss.com/3.4.1"></script>
+  <script src="https://bernardo-castilho.github.io/DragDropTouch/DragDropTouch.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══════════════════ 登入畫面 ══════════════════ -->
+<div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md bg-white rounded-xl shadow p-5 space-y-5">
+    <h1 class="text-xl font-bold text-center">🚑 大量傷病患管理系統</h1>
+
+    <div class="space-y-2">
+      <label class="font-bold text-sm">您的姓名（登入一次，之後自動帶入）</label>
+      <input type="text" id="loginOperatorName" placeholder="例如：王小明">
+    </div>
+
+    <hr>
+
+    <div class="space-y-2">
+      <div class="font-bold text-sm">進入既有案件</div>
+      <select id="incidentSelect"></select>
+      <input type="text" id="loginPasscode" placeholder="案件共用驗證碼">
+      <button id="loginBtn" class="w-full py-2 rounded bg-blue-600 text-white font-bold">登入</button>
+    </div>
+
+    <hr>
+
+    <div class="space-y-2">
+      <div class="font-bold text-sm">建立新案件</div>
+      <input type="text" id="newIncidentName" placeholder="案件名稱，例如：台9線車禍">
+      <input type="text" id="newIncidentPasscode" placeholder="設定本案件的共用驗證碼">
+      <button id="createIncidentBtn" class="w-full py-2 rounded bg-emerald-600 text-white font-bold">建立並登入</button>
+      <div class="text-xs text-slate-400">建立後，請把驗證碼告知其他要操作本案件的人員。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ 主看板畫面 ══════════════════ -->
+<div id="boardScreen" class="hidden min-h-screen flex flex-col">
+  <header class="bg-slate-800 text-white p-3 flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <div class="font-bold text-lg" id="incidentNameLabel">—</div>
+      <div class="text-xs text-slate-300" id="operatorLabel">—</div>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <button id="toggleMaskBtn" class="px-3 py-1 rounded bg-slate-600 text-sm">🙈 遮蔽姓名</button>
+      <button id="addPatientBtn" class="px-3 py-1 rounded bg-emerald-600 text-sm font-bold">＋ 建立傷患</button>
+      <button id="addAmbulanceBtn" class="px-3 py-1 rounded bg-blue-600 text-sm">＋ 加入救護車</button>
+      <button id="addHospitalBtn" class="px-3 py-1 rounded bg-indigo-600 text-sm">＋ 加入醫院</button>
+      <button id="logoutBtn" class="px-3 py-1 rounded bg-slate-600 text-sm">登出</button>
+    </div>
+  </header>
+
+  <main class="board-main">
+    <section class="board-col">
+      <div class="board-col-title">🧍 患者區</div>
+      <div id="patientColumn" class="board-col-body"></div>
+    </section>
+    <section class="board-col">
+      <div class="board-col-title">🚑 救護車（拖到空白處＝回待命）</div>
+      <div id="ambulanceColumn" class="board-col-body"></div>
+    </section>
+    <section class="board-col">
+      <div class="board-col-title">🏥 後送醫院</div>
+      <div id="hospitalColumn" class="board-col-body"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ══════════════════ 彈窗：車牌後4碼驗證 ══════════════════ -->
+<div id="plateModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="font-bold mb-2">請輸入「<span id="plateModalVehicle"></span>」車牌後4碼確認</div>
+    <input type="text" id="plateInput" maxlength="4" inputmode="numeric" placeholder="4個數字" class="text-center text-2xl tracking-widest">
+    <div class="flex gap-2 mt-3">
+      <button id="plateCancelBtn" class="flex-1 py-2 rounded bg-slate-200">取消</button>
+      <button id="plateConfirmBtn" class="flex-1 py-2 rounded bg-blue-600 text-white font-bold">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ 彈窗：救護車詳情（車上傷患/移除/交接單入口） ══════════════════ -->
+<div id="ambulanceDetailModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="font-bold text-lg mb-2" id="ambulanceDetailTitle"></div>
+    <div id="ambulanceDetailBody" class="mb-2"></div>
+    <div class="text-xs text-slate-500 mb-3" id="ambulanceDetailHint"></div>
+    <button id="openHandoverBtn" class="hidden w-full py-2 rounded bg-emerald-600 text-white font-bold mb-2">📝 產生交接單（簽名）</button>
+    <button id="ambulanceDetailCloseBtn" class="w-full py-2 rounded bg-slate-200">關閉</button>
+  </div>
+</div>
+
+<!-- ══════════════════ 彈窗：建立/重新檢傷傷患 ══════════════════ -->
+<div id="patientFormModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="font-bold text-lg mb-3" id="patientFormTitle"></div>
+
+    <div class="flex gap-2 mb-4">
+      <button type="button" id="colorBtn_RED" class="color-btn">紅｜立即</button>
+      <button type="button" id="colorBtn_YELLOW" class="color-btn">黃｜延遲</button>
+      <button type="button" id="colorBtn_GREEN" class="color-btn">綠｜輕傷</button>
+      <button type="button" id="colorBtn_BLACK" class="color-btn">黑｜死亡</button>
+    </div>
+
+    <div id="cameraBlock" class="mb-4 space-y-2">
+      <video id="cameraVideo" autoplay playsinline muted></video>
+      <canvas id="photoCanvas" class="hidden"></canvas>
+      <div class="text-xs text-slate-500" id="cameraHint"></div>
+      <div class="flex gap-2">
+        <button type="button" id="captureBtn" class="flex-1 py-2 rounded bg-slate-700 text-white text-sm">📷 拍照</button>
+        <button type="button" id="applyMosaicBtn" class="flex-1 py-2 rounded bg-amber-600 text-white text-sm">套用馬賽克</button>
+        <button type="button" id="retakeBtn" class="flex-1 py-2 rounded bg-slate-200 text-sm">重拍</button>
+      </div>
+    </div>
+
+    <div id="extraFieldsBlock" class="space-y-2 mb-4">
+      <input type="text" id="tagNumberInput" placeholder="現場檢傷貼紙編號（選填）">
+      <input type="text" id="patientNameInput" placeholder="姓名（未知可留空）">
+      <div class="flex gap-2">
+        <input type="text" id="patientGenderInput" placeholder="性別（選填）">
+        <input type="text" id="patientAgeInput" placeholder="年齡（選填）">
+      </div>
+      <textarea id="patientNoteInput" placeholder="生命徵象/備註（選填）" rows="2"></textarea>
+    </div>
+
+    <div class="flex gap-2">
+      <button id="patientFormCancelBtn" class="flex-1 py-2 rounded bg-slate-200">取消</button>
+      <button id="patientFormSubmitBtn" class="flex-1 py-2 rounded bg-emerald-600 text-white font-bold">送出</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ 彈窗：加入醫院 ══════════════════ -->
+<div id="hospitalAddModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="font-bold text-lg mb-2">從醫院主檔加入本案件</div>
+    <div id="hospitalMasterList" class="mb-3"></div>
+    <button id="hospitalAddCancelBtn" class="w-full py-2 rounded bg-slate-200">關閉</button>
+  </div>
+</div>
+
+<!-- ══════════════════ 彈窗：加入救護車 ══════════════════ -->
+<div id="ambulanceAddModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="font-bold text-lg mb-2">從救護車主檔加入本案件</div>
+    <div id="ambulanceMasterList" class="mb-3"></div>
+    <button id="ambulanceAddCancelBtn" class="w-full py-2 rounded bg-slate-200">關閉</button>
+  </div>
+</div>
+
+<!-- ══════════════════ 彈窗：醫院收治狀態切換 ══════════════════ -->
+<div id="hospitalStatusModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="font-bold text-lg mb-3" id="hospitalStatusTitle"></div>
+    <div class="grid grid-cols-2 gap-2 mb-3">
+      <button id="hospStatusBtn_AVAILABLE" class="py-3 rounded bg-emerald-600 text-white font-bold">可收治</button>
+      <button id="hospStatusBtn_LIMITED" class="py-3 rounded bg-amber-600 text-white font-bold">收治有限</button>
+      <button id="hospStatusBtn_FULL" class="py-3 rounded bg-red-600 text-white font-bold">已滿</button>
+      <button id="hospStatusBtn_UNKNOWN" class="py-3 rounded bg-slate-400 text-white font-bold">未回報</button>
+    </div>
+    <div class="text-xs text-slate-500 mb-3">此狀態僅供各裝置參考提示，不會阻擋救護車派遣（現場滿床仍以無線電回報為準）。</div>
+    <button id="hospitalStatusCancelBtn" class="w-full py-2 rounded bg-slate-200">關閉</button>
+  </div>
+</div>
+
+<!-- ══════════════════ 彈窗：交接單（簽名+PDF） ══════════════════ -->
+<div id="handoverModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="font-bold text-lg mb-2" id="handoverTitle"></div>
+    <div id="handoverPatientSummary" class="text-sm mb-3"></div>
+    <input type="text" id="handoverNurseName" placeholder="護理人員姓名（選填）" class="mb-2">
+    <div class="text-xs text-slate-500 mb-1">請護理人員在下方簽名：</div>
+    <canvas id="signatureCanvas"></canvas>
+    <button id="clearSignatureBtn" class="w-full py-1 rounded bg-slate-200 text-sm mt-2 mb-3">清除簽名</button>
+    <div class="flex gap-2">
+      <button id="handoverCancelBtn" class="flex-1 py-2 rounded bg-slate-200">取消</button>
+      <button id="handoverSubmitBtn" class="flex-1 py-2 rounded bg-emerald-600 text-white font-bold">產生並存檔</button>
+    </div>
+  </div>
+</div>
+
+<!-- 載入順序有依賴關係：config 最先、auth 最後（它會呼叫其他模組的 init） -->
+<script src="js/config.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/board.js"></script>
+<script src="js/dragdrop.js"></script>
+<script src="js/patientform.js"></script>
+<script src="js/camera_mosaic.js"></script>
+<script src="js/hospital.js"></script>
+<script src="js/handover.js"></script>
+<script src="js/auth.js"></script>
+
+</body>
+</html>

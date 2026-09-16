@@ -1,0 +1,34 @@
+// ⚠️ 部署前必填：把 Apps Script 部署後拿到的網址貼在下面，
+// 並確認 API_TOKEN 跟 backend/Code.gs 裡 CONFIG.API_TOKEN 完全一致（兩邊要手動保持同步）。
+var APP = window.APP || {};
+
+APP.Config = {
+  API_TOKEN: 'DAMS_2026_請自行更改',
+  BASE_URL: 'https://script.google.com/macros/s/請貼上您的部署ID/exec',
+  POLL_INTERVAL_MS: 3000,
+};
+
+APP.Api = {
+  get: function (action, params) {
+    params = params || {};
+    var url = APP.Config.BASE_URL + '?action=' + encodeURIComponent(action) +
+      '&token=' + encodeURIComponent(APP.Config.API_TOKEN);
+    Object.keys(params).forEach(function (k) {
+      if (params[k] !== undefined && params[k] !== null) {
+        url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+      }
+    });
+    return fetch(url).then(function (r) { return r.json(); });
+  },
+  post: function (action, payload) {
+    payload = payload || {};
+    payload.action = action;
+    payload.token = APP.Config.API_TOKEN;
+    // 刻意不設定 Content-Type（讓瀏覽器預設送 text/plain），
+    // 這樣呼叫 Apps Script 才不會觸發 CORS 預檢請求而失敗。
+    return fetch(APP.Config.BASE_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then(function (r) { return r.json(); });
+  },
+};

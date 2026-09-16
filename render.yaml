@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: dams-frontend
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: ./frontend
+    pullRequestPreviewsEnabled: false
