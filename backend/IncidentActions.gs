@@ -106,6 +106,10 @@ function createIncident(payload) {
 
   appendAuditLog(sheet, payload.creatorName || '', 'CREATE_INCIDENT', incidentId, '建立案件：' + rawName, {});
 
+  // 強制把這個分頁的新增/寫入確實送出，降低前端緊接著操作（例如馬上加入醫院）
+  // 時查不到這個分頁的機率（另有 getIncidentSheetOrError 的重試機制做第二層保障）
+  SpreadsheetApp.flush();
+
   return { status: 'success', incidentId: incidentId, displayName: rawName };
 }
 

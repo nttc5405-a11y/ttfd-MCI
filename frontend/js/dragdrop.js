@@ -1,7 +1,17 @@
 APP.DragDrop = APP.DragDrop || {};
+APP.DragDrop.isDragging = false;
 
 APP.DragDrop.init = function () {
   var ambulanceColumn = document.getElementById('ambulanceColumn');
+
+  // 拖曳進行中時，看板輪詢會整批重畫 DOM（見 board.js），若剛好在拖曳當下重畫，
+  // 手指底下的卡片會被整個換掉，體感上就是「拖曳卡頓/瞬間跳掉」。
+  // 這裡標記拖曳中，輪詢時暫停重畫，放開手才補畫一次最新狀態。
+  document.addEventListener('dragstart', function () { APP.DragDrop.isDragging = true; });
+  document.addEventListener('dragend', function () {
+    APP.DragDrop.isDragging = false;
+    APP.Board.refresh();
+  });
 
   // 救護車卡片拖曳到「中間欄空白處」＝回待命（不是拖到某輛車卡片上）
   ambulanceColumn.addEventListener('dragover', function (ev) { ev.preventDefault(); });

@@ -196,7 +196,14 @@ function getIncidentSheetOrError(incidentId) {
     return { error: { status: 'error', code: 'INVALID_INCIDENT_ID', message: '案件編號無效。' } };
   }
   const doc = getDoc();
-  const sheet = doc.getSheetByName(incidentId);
+  let sheet = doc.getSheetByName(incidentId);
+  // 案件剛建立的當下，這個分頁偶爾要幾秒鐘才會讓「另一個」Apps Script執行
+  // （例如緊接著的加入醫院／讀看板請求）查得到——不是真的不存在，重試幾次再放棄，
+  // 避免使用者剛建立案件就馬上操作時看到「找不到此案件分頁」的假錯誤。
+  for (let i = 0; i < 6 && !sheet; i++) {
+    Utilities.sleep(700);
+    sheet = doc.getSheetByName(incidentId);
+  }
   if (!sheet) {
     return { error: { status: 'error', code: 'INCIDENT_NOT_FOUND', message: '找不到此案件分頁。' } };
   }

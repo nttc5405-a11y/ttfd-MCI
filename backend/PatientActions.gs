@@ -108,6 +108,10 @@ function movePatientToAmbulance(payload) {
   if (!targetFound) return { status: 'error', code: 'AMBULANCE_NOT_FOUND', message: '找不到此救護車（請先將車輛加入本案件）。' };
   const targetAmbulance = ambulanceRowToObject(targetFound.rowValues);
 
+  if (targetAmbulance.status === 'AT_HOSPITAL') {
+    return { status: 'error', code: 'AMBULANCE_AT_HOSPITAL', message: '這輛車已經抵達醫院，無法再指派新傷患，請等它返回現場。' };
+  }
+
   // 決議2：同車已有1位紅色傷患、又要加第2位紅色傷患時，需前端確認
   if (patient.color === 'RED' && !payload.confirmSecondRed) {
     const hasOtherRed = targetAmbulance.patientIds.some(function (pid) {
