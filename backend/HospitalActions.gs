@@ -67,3 +67,49 @@ function addHospitalToIncident(payload) {
 
   return { status: 'success', data: hospital };
 }
+
+// 批次加入多間醫院（勾選清單一次送出，不用一個一個點）
+function addHospitalsToIncident(payload) {
+  const incidentId = sanitizeSheetName(payload.incidentId);
+  const res = getIncidentSheetOrError(incidentId);
+  if (res.error) return res.error;
+  const sheet = res.sheet;
+
+  const hospitalIds = payload.hospitalIds;
+  if (!Array.isArray(hospitalIds) || hospitalIds.length === 0) {
+    return { status: 'error', code: 'NO_ITEMS', message: '請至少勾選一間醫院。' };
+  }
+
+  const doc = getDoc();
+  const masterSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.HOSPITAL);
+  if (!masterSheet) return { status: 'error', code: 'NO_MASTER', message: '找不到醫院主檔。' };
+  const masterData = masterSheet.getDataRange().getValues();
+
+  const added = [];
+  const skipped = [];
+
+  hospitalIds.forEach(function (hospitalId) {
+    if (findBlockRowByKey(sheet, BLOCK.HOSPITAL, 0, hospitalId)) {
+      skipped.push({ hospitalId: hospitalId, reason: '已在本案件中' });
+      return;
+    }
+    let found = null;
+    for (let i = 1; i < masterData.length; i++) {
+      if (String(masterData[i][0]) === hospitalId) { found = masterData[i]; break; }
+    }
+    if (!found) {
+      skipped.push({ hospitalId: hospitalId, reason: '主檔查無此ID' });
+      return;
+    }
+    const hospital = { hospitalId: hospitalId, name: found[1], status: 'UNKNOWN', deliveredCount: 0, updatedAt: new Date() };
+    appendBlockRow(sheet, BLOCK.HOSPITAL, hospitalObjectToRow(hospital));
+    added.push(hospital);
+  });
+
+  if (added.length > 0) {
+    appendAuditLog(sheet, payload.operatorName || '', 'ADD_HOSPITAL_BATCH', '',
+      '批次加入醫院 ' + added.length + ' 間：' + added.map(function (h) { return h.name; }).join('、'), {});
+  }
+
+  return { status: 'success', added: added, skipped: skipped };
+}

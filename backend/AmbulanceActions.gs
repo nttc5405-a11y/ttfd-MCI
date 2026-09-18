@@ -141,3 +141,53 @@ function addAmbulanceToIncident(payload) {
 
   return { status: 'success', data: ambulance };
 }
+
+// 批次加入多輛救護車（勾選清單一次送出，不用一個一個點）
+function addAmbulancesToIncident(payload) {
+  const incidentId = sanitizeSheetName(payload.incidentId);
+  const res = getIncidentSheetOrError(incidentId);
+  if (res.error) return res.error;
+  const sheet = res.sheet;
+
+  const vehicleCodes = payload.vehicleCodes;
+  if (!Array.isArray(vehicleCodes) || vehicleCodes.length === 0) {
+    return { status: 'error', code: 'NO_ITEMS', message: '請至少勾選一輛救護車。' };
+  }
+
+  const doc = getDoc();
+  const masterSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.AMBULANCE);
+  if (!masterSheet) return { status: 'error', code: 'NO_MASTER', message: '找不到救護車主檔。' };
+  const masterData = masterSheet.getDataRange().getValues();
+
+  const added = [];
+  const skipped = [];
+
+  vehicleCodes.forEach(function (vehicleCode) {
+    if (findBlockRowByKey(sheet, BLOCK.AMBULANCE, 0, vehicleCode)) {
+      skipped.push({ vehicleCode: vehicleCode, reason: '已在本案件中' });
+      return;
+    }
+    let found = null;
+    for (let i = 1; i < masterData.length; i++) {
+      if (String(masterData[i][0]) === vehicleCode) { found = masterData[i]; break; }
+    }
+    if (!found) {
+      skipped.push({ vehicleCode: vehicleCode, reason: '主檔查無此代碼' });
+      return;
+    }
+    const displayName = found[2] + ' ' + found[0];
+    const ambulance = {
+      vehicleCode: vehicleCode, displayName: displayName, status: 'STANDBY',
+      patientIds: [], hospitalId: '', arrivedAt: '', crew: found[4] || '', updatedAt: new Date(),
+    };
+    appendBlockRow(sheet, BLOCK.AMBULANCE, ambulanceObjectToRow(ambulance));
+    added.push(ambulance);
+  });
+
+  if (added.length > 0) {
+    appendAuditLog(sheet, payload.operatorName || '', 'ADD_AMBULANCE_BATCH', '',
+      '批次加入救護車 ' + added.length + ' 輛：' + added.map(function (a) { return a.vehicleCode; }).join('、'), {});
+  }
+
+  return { status: 'success', added: added, skipped: skipped };
+}

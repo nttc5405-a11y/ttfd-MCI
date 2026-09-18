@@ -119,8 +119,12 @@ function doPost(e) {
         return respond(toggleHospitalStatus(payload));
       case 'addAmbulanceToIncident':
         return respond(addAmbulanceToIncident(payload));
+      case 'addAmbulancesToIncident':
+        return respond(addAmbulancesToIncident(payload));
       case 'addHospitalToIncident':
         return respond(addHospitalToIncident(payload));
+      case 'addHospitalsToIncident':
+        return respond(addHospitalsToIncident(payload));
       case 'saveHandover':
         return respond(saveHandover(payload));
       default:

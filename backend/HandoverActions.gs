@@ -27,7 +27,7 @@ function savePhotoToDrive(incidentId, triageId, photoBase64) {
   try {
     const folder = getOrCreatePhotoFolder(incidentId);
     const fileName = triageId + '_' + Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyyMMdd_HHmmss') + '.jpg';
-    const bytes = Utilities.base64Decode(photoBase64.replace(/^data:image\/\w+;base64,/, ''));
+    const bytes = Utilities.base64Decode(extractBase64Payload(photoBase64));
     const blob = Utilities.newBlob(bytes, 'image/jpeg', fileName);
     const file = folder.createFile(blob);
     return { fileId: file.getId(), fileUrl: file.getUrl() };
@@ -50,7 +50,7 @@ function saveHandover(payload) {
     const folder = getOrCreateHandoverFolder(incidentId);
     const fileName = '交接單_' + (payload.ambulanceId || '未知車輛') + '_' +
       Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyyMMdd_HHmmss') + '.pdf';
-    const bytes = Utilities.base64Decode(payload.pdfBase64.replace(/^data:application\/pdf;base64,/, ''));
+    const bytes = Utilities.base64Decode(extractBase64Payload(payload.pdfBase64));
     const blob = Utilities.newBlob(bytes, 'application/pdf', fileName);
     file = folder.createFile(blob);
   } catch (err) {

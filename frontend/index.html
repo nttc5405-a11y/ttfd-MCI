@@ -137,21 +137,33 @@
   </div>
 </div>
 
-<!-- ══════════════════ 彈窗：加入醫院 ══════════════════ -->
+<!-- ══════════════════ 彈窗：加入醫院（可勾選多間） ══════════════════ -->
 <div id="hospitalAddModal" class="modal-overlay hidden">
   <div class="modal-box">
     <div class="font-bold text-lg mb-2">從醫院主檔加入本案件</div>
+    <label class="flex items-center gap-2 mb-2 text-sm text-slate-500">
+      <input type="checkbox" id="hospitalSelectAll"> 全選
+    </label>
     <div id="hospitalMasterList" class="mb-3"></div>
-    <button id="hospitalAddCancelBtn" class="w-full py-2 rounded bg-slate-200">關閉</button>
+    <div class="flex gap-2">
+      <button id="hospitalAddCancelBtn" class="flex-1 py-2 rounded bg-slate-200">關閉</button>
+      <button id="hospitalAddSubmitBtn" class="flex-1 py-2 rounded bg-indigo-600 text-white font-bold">加入已選取</button>
+    </div>
   </div>
 </div>
 
-<!-- ══════════════════ 彈窗：加入救護車 ══════════════════ -->
+<!-- ══════════════════ 彈窗：加入救護車（可勾選多輛） ══════════════════ -->
 <div id="ambulanceAddModal" class="modal-overlay hidden">
   <div class="modal-box">
     <div class="font-bold text-lg mb-2">從救護車主檔加入本案件</div>
+    <label class="flex items-center gap-2 mb-2 text-sm text-slate-500">
+      <input type="checkbox" id="ambulanceSelectAll"> 全選
+    </label>
     <div id="ambulanceMasterList" class="mb-3"></div>
-    <button id="ambulanceAddCancelBtn" class="w-full py-2 rounded bg-slate-200">關閉</button>
+    <div class="flex gap-2">
+      <button id="ambulanceAddCancelBtn" class="flex-1 py-2 rounded bg-slate-200">關閉</button>
+      <button id="ambulanceAddSubmitBtn" class="flex-1 py-2 rounded bg-blue-600 text-white font-bold">加入已選取</button>
+    </div>
   </div>
 </div>
 

@@ -4,6 +4,11 @@ APP.Hospital.currentHospital = null;
 APP.Hospital.init = function () {
   document.getElementById('addHospitalBtn').addEventListener('click', APP.Hospital.openAddModal);
   document.getElementById('hospitalAddCancelBtn').addEventListener('click', APP.Hospital.closeAddModal);
+  document.getElementById('hospitalAddSubmitBtn').addEventListener('click', APP.Hospital.submitAddSelectedHospitals);
+  document.getElementById('hospitalSelectAll').addEventListener('change', function (ev) {
+    document.querySelectorAll('.hospital-add-checkbox').forEach(function (cb) { cb.checked = ev.target.checked; });
+  });
+
   document.getElementById('hospitalStatusCancelBtn').addEventListener('click', APP.Hospital.closeStatusPicker);
   ['AVAILABLE', 'LIMITED', 'FULL', 'UNKNOWN'].forEach(function (s) {
     var btn = document.getElementById('hospStatusBtn_' + s);
@@ -12,11 +17,17 @@ APP.Hospital.init = function () {
 
   document.getElementById('addAmbulanceBtn').addEventListener('click', APP.Hospital.openAddAmbulanceModal);
   document.getElementById('ambulanceAddCancelBtn').addEventListener('click', APP.Hospital.closeAddAmbulanceModal);
+  document.getElementById('ambulanceAddSubmitBtn').addEventListener('click', APP.Hospital.submitAddSelectedAmbulances);
+  document.getElementById('ambulanceSelectAll').addEventListener('change', function (ev) {
+    document.querySelectorAll('.ambulance-add-checkbox').forEach(function (cb) { cb.checked = ev.target.checked; });
+  });
 };
 
+// ─── 加入醫院（可勾選多間，一次送出） ──────────────────────────
 APP.Hospital.openAddModal = function () {
   var list = document.getElementById('hospitalMasterList');
   list.innerHTML = '載入中...';
+  document.getElementById('hospitalSelectAll').checked = false;
   document.getElementById('hospitalAddModal').classList.remove('hidden');
   APP.Api.get('getHospitalMaster', {}).then(function (res) {
     list.innerHTML = '';
@@ -25,22 +36,16 @@ APP.Hospital.openAddModal = function () {
       return;
     }
     res.data.forEach(function (h) {
-      var row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding:8px 0;gap:8px;';
+      var row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid #e2e8f0;padding:8px 4px;';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'hospital-add-checkbox';
+      cb.value = h.hospitalId;
       var label = document.createElement('span');
       label.textContent = h.name + '（' + h.hospitalId + '）';
+      row.appendChild(cb);
       row.appendChild(label);
-      var btn = document.createElement('button');
-      btn.textContent = '加入本案件';
-      btn.style.cssText = 'padding:6px 10px;background:#4f46e5;color:#fff;border:none;border-radius:6px;font-size:12px;';
-      btn.addEventListener('click', function () {
-        APP.Api.post('addHospitalToIncident', APP.DragDrop.withSession({ hospitalId: h.hospitalId })).then(function (r) {
-          if (r.status !== 'success') { APP.UI.alert(r.message || '加入失敗'); return; }
-          APP.Hospital.closeAddModal();
-          APP.Board.refresh();
-        });
-      });
-      row.appendChild(btn);
       list.appendChild(row);
     });
   });
@@ -48,6 +53,21 @@ APP.Hospital.openAddModal = function () {
 
 APP.Hospital.closeAddModal = function () {
   document.getElementById('hospitalAddModal').classList.add('hidden');
+};
+
+APP.Hospital.submitAddSelectedHospitals = function () {
+  var ids = Array.prototype.slice.call(document.querySelectorAll('.hospital-add-checkbox:checked'))
+    .map(function (cb) { return cb.value; });
+  if (ids.length === 0) { APP.UI.alert('請至少勾選一間醫院。'); return; }
+
+  APP.Api.post('addHospitalsToIncident', APP.DragDrop.withSession({ hospitalIds: ids })).then(function (r) {
+    if (r.status !== 'success') { APP.UI.alert(r.message || '加入失敗'); return; }
+    APP.Hospital.closeAddModal();
+    APP.Board.refresh();
+    if (r.skipped && r.skipped.length > 0) {
+      APP.UI.alert('已加入 ' + r.added.length + ' 間；略過 ' + r.skipped.length + ' 間（已在本案件中或主檔查無資料）。');
+    }
+  }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
 };
 
 APP.Hospital.openStatusPicker = function (h) {
@@ -71,9 +91,11 @@ APP.Hospital.applyStatus = function (status) {
   }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
 };
 
+// ─── 加入救護車（可勾選多輛，一次送出） ──────────────────────────
 APP.Hospital.openAddAmbulanceModal = function () {
   var list = document.getElementById('ambulanceMasterList');
   list.innerHTML = '載入中...';
+  document.getElementById('ambulanceSelectAll').checked = false;
   document.getElementById('ambulanceAddModal').classList.remove('hidden');
   APP.Api.get('getAmbulanceMaster', {}).then(function (res) {
     list.innerHTML = '';
@@ -82,22 +104,16 @@ APP.Hospital.openAddAmbulanceModal = function () {
       return;
     }
     res.data.forEach(function (v) {
-      var row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding:8px 0;gap:8px;';
+      var row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid #e2e8f0;padding:8px 4px;';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'ambulance-add-checkbox';
+      cb.value = v.vehicleCode;
       var label = document.createElement('span');
       label.textContent = v.unitName + ' ' + v.vehicleCode + '（' + v.unitType + '）';
+      row.appendChild(cb);
       row.appendChild(label);
-      var btn = document.createElement('button');
-      btn.textContent = '加入本案件';
-      btn.style.cssText = 'padding:6px 10px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:12px;';
-      btn.addEventListener('click', function () {
-        APP.Api.post('addAmbulanceToIncident', APP.DragDrop.withSession({ vehicleCode: v.vehicleCode })).then(function (r) {
-          if (r.status !== 'success') { APP.UI.alert(r.message || '加入失敗'); return; }
-          APP.Hospital.closeAddAmbulanceModal();
-          APP.Board.refresh();
-        });
-      });
-      row.appendChild(btn);
       list.appendChild(row);
     });
   });
@@ -105,4 +121,19 @@ APP.Hospital.openAddAmbulanceModal = function () {
 
 APP.Hospital.closeAddAmbulanceModal = function () {
   document.getElementById('ambulanceAddModal').classList.add('hidden');
+};
+
+APP.Hospital.submitAddSelectedAmbulances = function () {
+  var codes = Array.prototype.slice.call(document.querySelectorAll('.ambulance-add-checkbox:checked'))
+    .map(function (cb) { return cb.value; });
+  if (codes.length === 0) { APP.UI.alert('請至少勾選一輛救護車。'); return; }
+
+  APP.Api.post('addAmbulancesToIncident', APP.DragDrop.withSession({ vehicleCodes: codes })).then(function (r) {
+    if (r.status !== 'success') { APP.UI.alert(r.message || '加入失敗'); return; }
+    APP.Hospital.closeAddAmbulanceModal();
+    APP.Board.refresh();
+    if (r.skipped && r.skipped.length > 0) {
+      APP.UI.alert('已加入 ' + r.added.length + ' 輛；略過 ' + r.skipped.length + ' 輛（已在本案件中或主檔查無資料）。');
+    }
+  }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
 };

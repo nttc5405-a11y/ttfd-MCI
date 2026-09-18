@@ -183,6 +183,17 @@ function hospitalObjectToRow(h) {
 // 雜項工具
 // ────────────────────────────────────────────────────────────────
 
+// 把 data URL（data:xxx;base64,AAAA... 或 jsPDF 的
+// data:application/pdf;filename=xxx.pdf;base64,AAAA... 這種帶檔名參數的格式）
+// 轉成純 base64 字串。找「base64,」字面出現的位置取後半段，
+// 不管前面 MIME/參數怎麼寫都能正確解析，避免 Utilities.base64Decode 因為
+// 混進非base64字元而丟出「無法解碼字串」。
+function extractBase64Payload(dataUrl) {
+  const marker = 'base64,';
+  const idx = dataUrl.indexOf(marker);
+  return idx >= 0 ? dataUrl.substring(idx + marker.length) : dataUrl;
+}
+
 function sanitizeSheetName(name) {
   if (!name || typeof name !== 'string') return null;
   const cleaned = name.replace(/[\\\/\?\*\[\]\:]/g, '_').trim();
