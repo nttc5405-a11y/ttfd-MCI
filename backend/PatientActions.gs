@@ -175,12 +175,14 @@ function removePatientFromAmbulance(payload) {
     updateBlockRow(sheet, BLOCK.AMBULANCE, ambFound.rowIndex, ambulanceObjectToRow(ambulance));
   }
 
+  const wasDelivered = patient.status === 'AT_HOSPITAL';
   patient.ambulanceCode = '';
+  patient.hospitalId = ''; // 一併清空，避免變成「狀態是現場、卻還留著醫院ID」的不一致資料
   patient.status = 'ON_SCENE';
   updateBlockRow(sheet, BLOCK.PATIENT, patientFound.rowIndex, patientObjectToRow(patient));
 
   appendAuditLog(sheet, payload.operatorName || '', 'REMOVE_FROM_AMBULANCE', patient.triageId,
-    patient.triageId + ' 從救護車移除（故障/手動）', {});
+    patient.triageId + (wasDelivered ? ' 移除到院紀錄（更正指派錯誤）' : ' 從救護車移除（故障/手動）'), {});
 
   return { status: 'success', data: patient };
 }

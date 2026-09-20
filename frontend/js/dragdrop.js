@@ -97,7 +97,8 @@ APP.DragDrop.askPlateAndRun = function (ambulanceId, runFn) {
   });
 };
 
-// 點入救護車卡片：看車上傷患名單，可個別「移除」（故障/換車用）；已到院時可產生交接單
+// 點入救護車卡片：看車上傷患名單，可個別「移除」（不論車輛狀態都能移除，
+// 用於故障/換車，或到院後才發現指派錯誤的更正）；已到院時可產生交接單
 APP.DragDrop.openAmbulanceDetail = function (ambulance) {
   var modal = document.getElementById('ambulanceDetailModal');
   var body = document.getElementById('ambulanceDetailBody');
@@ -118,19 +119,17 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
       label.textContent = p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' +
         (APP.Board.state.masked ? '' : ' ' + (p.name || '無名氏'));
       row.appendChild(label);
-      if (ambulance.status !== 'AT_HOSPITAL') {
-        var btn = document.createElement('button');
-        btn.textContent = '移除（故障/換車）';
-        btn.style.cssText = 'padding:6px 10px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-size:12px;';
-        btn.addEventListener('click', function () {
-          APP.Api.post('removePatientFromAmbulance', APP.DragDrop.withSession({ patientId: p.triageId })).then(function (res) {
-            if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
-            APP.Board.refresh();
-            APP.DragDrop.closeAmbulanceDetail();
-          });
+      var btn = document.createElement('button');
+      btn.textContent = ambulance.status === 'AT_HOSPITAL' ? '移除（更正指派錯誤）' : '移除（故障/換車）';
+      btn.style.cssText = 'padding:6px 10px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-size:12px;';
+      btn.addEventListener('click', function () {
+        APP.Api.post('removePatientFromAmbulance', APP.DragDrop.withSession({ patientId: p.triageId })).then(function (res) {
+          if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
+          APP.Board.refresh();
+          APP.DragDrop.closeAmbulanceDetail();
         });
-        row.appendChild(btn);
-      }
+      });
+      row.appendChild(btn);
       body.appendChild(row);
     });
   }

@@ -79,53 +79,62 @@ APP.Handover.submit = function () {
   var patients = APP.Handover.currentPatients;
   var session = APP.Auth.getSession();
 
-  var docPdf = new jspdf.jsPDF();
-  docPdf.setFontSize(16);
-  docPdf.text('大量傷病患後送交接單', 20, 20);
-  docPdf.setFontSize(11);
-  docPdf.text('案件：' + session.incidentId, 20, 30);
-  docPdf.text('救護車：' + ambulance.displayName, 20, 37);
-  docPdf.text('送達醫院：' + (ambulance.hospitalId || ''), 20, 44);
-  docPdf.text('時間：' + new Date().toLocaleString('zh-TW'), 20, 51);
-  docPdf.text('操作人員：' + session.operatorName, 20, 58);
+  var submitBtn = document.getElementById('handoverSubmitBtn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = '產生中...';
 
-  var y = 68;
-  docPdf.text('傷患清單：', 20, y);
-  y += 7;
+  // 先把交接單內容填進畫面外的排版樣板（見 index.html #handoverPdfTemplate），
+  // 再用 html2canvas 把它拍成一張圖片放進PDF——中文用瀏覽器自己的字型渲染，
+  // 不會有 jsPDF 內建字型不支援中文、直接doc.text()中文變亂碼的問題。
+  document.getElementById('pdfIncidentId').textContent = session.incidentId;
+  document.getElementById('pdfAmbulance').textContent = ambulance.displayName;
+  document.getElementById('pdfHospital').textContent = ambulance.hospitalId || '（無）';
+  document.getElementById('pdfTime').textContent = new Date().toLocaleString('zh-TW');
+  document.getElementById('pdfOperator').textContent = session.operatorName;
+  document.getElementById('pdfNurseName').textContent = nurseName || '（未填寫，以簽名為準）';
+
+  var listEl = document.getElementById('pdfPatientList');
   if (patients.length === 0) {
-    docPdf.text('（無）', 24, y);
-    y += 7;
+    listEl.innerHTML = '（無）';
   } else {
-    patients.forEach(function (p) {
-      var line = '・' + p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' +
+    listEl.innerHTML = patients.map(function (p) {
+      return '・' + p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' +
         (p.name || '未提供姓名') + (p.tagNumber ? '　貼紙編號：' + p.tagNumber : '');
-      docPdf.text(line, 24, y);
-      y += 7;
-    });
+    }).join('<br>');
   }
 
-  y += 5;
-  docPdf.text('護理人員：' + (nurseName || '（未填寫，以簽名為準）'), 20, y);
-  y += 7;
-  docPdf.text('簽名：', 20, y);
-  try {
-    docPdf.addImage(signatureDataUrl, 'PNG', 45, y - 6, 60, 25);
-  } catch (e) {
-    // 簽名區塊為空白時 addImage 可能丟出例外，此情況直接略過圖片即可
-  }
+  var sigImg = document.getElementById('pdfSignatureImg');
 
-  var pdfBase64 = docPdf.output('datauristring');
+  new Promise(function (resolve) {
+    sigImg.onload = resolve;
+    sigImg.src = signatureDataUrl;
+  }).then(function () {
+    return html2canvas(document.getElementById('handoverPdfTemplate'), { scale: 2, backgroundColor: '#ffffff' });
+  }).then(function (renderedCanvas) {
+    var imgData = renderedCanvas.toDataURL('image/png');
+    var pdf = new jspdf.jsPDF();
+    var pageWidth = pdf.internal.pageSize.getWidth();
+    var imgWidth = pageWidth - 20;
+    var imgHeight = renderedCanvas.height * imgWidth / renderedCanvas.width;
+    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+    var pdfBase64 = pdf.output('datauristring');
 
-  APP.Api.post('saveHandover', APP.DragDrop.withSession({
-    ambulanceId: ambulance.vehicleCode,
-    hospitalId: ambulance.hospitalId,
-    patientIds: patients.map(function (p) { return p.triageId; }),
-    nurseName: nurseName,
-    pdfBase64: pdfBase64,
-  })).then(function (res) {
+    return APP.Api.post('saveHandover', APP.DragDrop.withSession({
+      ambulanceId: ambulance.vehicleCode,
+      hospitalId: ambulance.hospitalId,
+      patientIds: patients.map(function (p) { return p.triageId; }),
+      nurseName: nurseName,
+      pdfBase64: pdfBase64,
+    }));
+  }).then(function (res) {
     if (res.status !== 'success') { APP.UI.alert(res.message || '交接單存檔失敗'); return; }
     APP.UI.alert('交接單已存檔完成。');
     APP.Handover.close();
     APP.Board.refresh();
-  }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+  }).catch(function (err) {
+    APP.UI.alert('產生交接單失敗：' + (err && err.message ? err.message : '未知錯誤'));
+  }).finally(function () {
+    submitBtn.disabled = false;
+    submitBtn.textContent = '產生並存檔';
+  });
 };

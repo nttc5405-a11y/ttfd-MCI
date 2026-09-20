@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com/3.4.1"></script>
   <script src="https://bernardo-castilho.github.io/DragDropTouch/DragDropTouch.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -196,6 +197,25 @@
       <button id="handoverSubmitBtn" class="flex-1 py-2 rounded bg-emerald-600 text-white font-bold">產生並存檔</button>
     </div>
   </div>
+</div>
+
+<!-- 交接單PDF的排版樣板：畫在螢幕外，用 html2canvas 拍成圖片再放進PDF。
+     這樣中文才能正確顯示——jsPDF內建字型不支援中文，直接doc.text()中文會變亂碼，
+     用瀏覽器自己的字型渲染成圖片就沒有這個問題。 -->
+<div id="handoverPdfTemplate" style="position:fixed; left:-9999px; top:0; width:700px; background:#fff; padding:32px; font-family:'Microsoft JhengHei','PingFang TC',sans-serif; color:#111;">
+  <h2 style="text-align:center; margin:0 0 20px; font-size:22px;">大量傷病患後送交接單</h2>
+  <table style="width:100%; font-size:15px; margin-bottom:20px; border-collapse:collapse;">
+    <tr><td style="padding:4px 8px 4px 0; width:110px; color:#555;">案件</td><td id="pdfIncidentId"></td></tr>
+    <tr><td style="padding:4px 8px 4px 0; color:#555;">救護車</td><td id="pdfAmbulance"></td></tr>
+    <tr><td style="padding:4px 8px 4px 0; color:#555;">送達醫院</td><td id="pdfHospital"></td></tr>
+    <tr><td style="padding:4px 8px 4px 0; color:#555;">時間</td><td id="pdfTime"></td></tr>
+    <tr><td style="padding:4px 8px 4px 0; color:#555;">操作人員</td><td id="pdfOperator"></td></tr>
+  </table>
+  <div style="font-weight:700; margin-bottom:8px; font-size:16px; border-bottom:2px solid #333; padding-bottom:4px;">傷患清單</div>
+  <div id="pdfPatientList" style="font-size:15px; margin-bottom:24px; line-height:1.8;"></div>
+  <div style="font-size:15px; margin-bottom:10px;">護理人員：<span id="pdfNurseName"></span></div>
+  <div style="font-size:15px; margin-bottom:6px;">簽名：</div>
+  <img id="pdfSignatureImg" style="width:220px; height:90px; border:1px solid #ccc; display:block;">
 </div>
 
 <!-- 載入順序有依賴關係：config 最先、auth 最後（它會呼叫其他模組的 init） -->
