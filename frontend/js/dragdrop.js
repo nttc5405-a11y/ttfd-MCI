@@ -1,69 +1,16 @@
+// 檔名沿用舊名，但內容已經從「拖曳」改成「點選式」互動（見 board.js 的選取邏輯）——
+// 拖曳在觸控裝置上（尤其戴手套時）容易失敗，改成「點傷患→點救護車」兩次點擊更可靠。
 APP.DragDrop = APP.DragDrop || {};
-APP.DragDrop.isDragging = false;
 
 APP.DragDrop.init = function () {
-  var ambulanceColumn = document.getElementById('ambulanceColumn');
-
-  // 拖曳進行中時，看板輪詢會整批重畫 DOM（見 board.js），若剛好在拖曳當下重畫，
-  // 手指底下的卡片會被整個換掉，體感上就是「拖曳卡頓/瞬間跳掉」。
-  // 這裡標記拖曳中，輪詢時暫停重畫，放開手才補畫一次最新狀態。
-  document.addEventListener('dragstart', function () { APP.DragDrop.isDragging = true; });
-  document.addEventListener('dragend', function () {
-    APP.DragDrop.isDragging = false;
-    APP.Board.refresh();
-  });
-
-  // 救護車卡片拖曳到「中間欄空白處」＝回待命（不是拖到某輛車卡片上）
-  ambulanceColumn.addEventListener('dragover', function (ev) { ev.preventDefault(); });
-  ambulanceColumn.addEventListener('drop', function (ev) {
-    ev.preventDefault();
-    if (ev.target.closest('[data-ambulance-id]')) return;
-    var data = APP.DragDrop.readDragData(ev);
-    if (!data || data.type !== 'ambulance') return;
-    APP.DragDrop.askPlateAndRun(data.ambulanceId, function (plateLast4) {
-      return APP.Api.post('moveAmbulanceToStandby', APP.DragDrop.withSession({
-        ambulanceId: data.ambulanceId, plateLast4: plateLast4,
-      }));
-    });
-  });
-
-  // 患者卡片拖到某輛救護車卡片＝指派；救護車卡片拖到某醫院卡片＝抵達
-  document.body.addEventListener('dragover', function (ev) {
-    if (ev.target.closest('[data-ambulance-id]') || ev.target.closest('[data-hospital-id]')) {
-      ev.preventDefault();
-    }
-  });
-
-  document.body.addEventListener('drop', function (ev) {
-    var ambCard = ev.target.closest('[data-ambulance-id]');
-    var hospCard = ev.target.closest('[data-hospital-id]');
-    var data = APP.DragDrop.readDragData(ev);
-    if (!data) return;
-
-    if (ambCard && data.type === 'patient') {
-      ev.preventDefault();
-      APP.DragDrop.movePatient(data.patientId, ambCard.dataset.ambulanceId, false);
-    } else if (hospCard && data.type === 'ambulance') {
-      ev.preventDefault();
-      var hospitalId = hospCard.dataset.hospitalId;
-      APP.DragDrop.askPlateAndRun(data.ambulanceId, function (plateLast4) {
-        return APP.Api.post('moveAmbulanceToHospital', APP.DragDrop.withSession({
-          ambulanceId: data.ambulanceId, plateLast4: plateLast4, hospitalId: hospitalId,
-        }));
-      });
-    }
-  });
-
   document.getElementById('ambulanceDetailCloseBtn').addEventListener('click', APP.DragDrop.closeAmbulanceDetail);
-};
-
-APP.DragDrop.readDragData = function (ev) {
-  try {
-    var raw = ev.dataTransfer.getData('text/plain');
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    return null;
-  }
+  document.getElementById('sendToHospitalBtn').addEventListener('click', function () {
+    APP.DragDrop.openHospitalPicker(APP.DragDrop.currentAmbulance);
+  });
+  document.getElementById('returnStandbyBtn').addEventListener('click', function () {
+    APP.DragDrop.returnToStandby(APP.DragDrop.currentAmbulance.vehicleCode);
+  });
+  document.getElementById('hospitalPickerCancelBtn').addEventListener('click', APP.DragDrop.closeHospitalPicker);
 };
 
 APP.DragDrop.withSession = function (extra) {
@@ -74,15 +21,20 @@ APP.DragDrop.withSession = function (extra) {
   return extra;
 };
 
+// 指派選取中的傷患給某輛救護車（由 board.js 點擊救護車卡片時呼叫）
 APP.DragDrop.movePatient = function (patientId, ambulanceId, confirmSecondRed) {
   APP.Api.post('movePatientToAmbulance', APP.DragDrop.withSession({
     patientId: patientId, ambulanceId: ambulanceId, confirmSecondRed: confirmSecondRed,
   })).then(function (res) {
     if (res.status === 'confirm_required') {
       APP.UI.confirm(res.message, function () { APP.DragDrop.movePatient(patientId, ambulanceId, true); });
-      return;
+      return; // 選取狀態保留，等使用者決定確認或改選別輛車
     }
-    if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
+    if (res.status !== 'success') {
+      APP.UI.alert(res.message || '操作失敗');
+      return; // 失敗也保留選取，方便直接改點別輛車重試
+    }
+    APP.Board.selectedPatientId = null;
     APP.Board.refresh();
   }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
 };
@@ -97,9 +49,57 @@ APP.DragDrop.askPlateAndRun = function (ambulanceId, runFn) {
   });
 };
 
+APP.DragDrop.returnToStandby = function (ambulanceId) {
+  APP.DragDrop.askPlateAndRun(ambulanceId, function (plateLast4) {
+    return APP.Api.post('moveAmbulanceToStandby', APP.DragDrop.withSession({
+      ambulanceId: ambulanceId, plateLast4: plateLast4,
+    }));
+  });
+  APP.DragDrop.closeAmbulanceDetail();
+};
+
+// 「送達醫院」：先選要送去哪一間（本案件已加入的醫院清單），再走車牌驗證
+APP.DragDrop.openHospitalPicker = function (ambulance) {
+  var list = document.getElementById('hospitalPickerList');
+  list.innerHTML = '';
+  if (APP.Board.state.hospitals.length === 0) {
+    list.innerHTML = '<div class="empty-hint">案件裡還沒有加入任何醫院，請先在上方「＋加入醫院」。</div>';
+  } else {
+    APP.Board.state.hospitals.forEach(function (h) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding:8px 0;gap:8px;';
+      var label = document.createElement('span');
+      label.textContent = h.name + (h.status === 'FULL' ? '（已滿，僅供提示）' : '');
+      row.appendChild(label);
+      var btn = document.createElement('button');
+      btn.textContent = '送達此院';
+      btn.style.cssText = 'padding:6px 10px;background:#4f46e5;color:#fff;border:none;border-radius:6px;font-size:12px;';
+      btn.addEventListener('click', function () {
+        APP.DragDrop.closeHospitalPicker();
+        APP.DragDrop.closeAmbulanceDetail();
+        APP.DragDrop.askPlateAndRun(ambulance.vehicleCode, function (plateLast4) {
+          return APP.Api.post('moveAmbulanceToHospital', APP.DragDrop.withSession({
+            ambulanceId: ambulance.vehicleCode, plateLast4: plateLast4, hospitalId: h.hospitalId,
+          }));
+        });
+      });
+      row.appendChild(btn);
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('hospitalPickerModal').classList.remove('hidden');
+};
+
+APP.DragDrop.closeHospitalPicker = function () {
+  document.getElementById('hospitalPickerModal').classList.add('hidden');
+};
+
 // 點入救護車卡片：看車上傷患名單，可個別「移除」（不論車輛狀態都能移除，
-// 用於故障/換車，或到院後才發現指派錯誤的更正）；已到院時可產生交接單
+// 用於故障/換車，或到院後才發現指派錯誤的更正）；並提供送醫院/返回待命/交接單按鈕
+APP.DragDrop.currentAmbulance = null;
+
 APP.DragDrop.openAmbulanceDetail = function (ambulance) {
+  APP.DragDrop.currentAmbulance = ambulance;
   var modal = document.getElementById('ambulanceDetailModal');
   var body = document.getElementById('ambulanceDetailBody');
   document.getElementById('ambulanceDetailTitle').textContent = ambulance.displayName;
@@ -135,7 +135,13 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
   }
 
   var hint = document.getElementById('ambulanceDetailHint');
+  var sendBtn = document.getElementById('sendToHospitalBtn');
+  var standbyBtn = document.getElementById('returnStandbyBtn');
   var handoverBtn = document.getElementById('openHandoverBtn');
+
+  sendBtn.classList.toggle('hidden', ambulance.status === 'AT_HOSPITAL');
+  standbyBtn.classList.toggle('hidden', ambulance.status === 'STANDBY');
+
   if (ambulance.status === 'AT_HOSPITAL') {
     hint.textContent = '已抵達 ' + ambulance.hospitalId + '，車上傷患已自動標記送達。';
     handoverBtn.classList.remove('hidden');
@@ -144,7 +150,7 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
       APP.Handover.open(ambulance, patients);
     };
   } else {
-    hint.textContent = '要送醫院請把這輛車拖到右側醫院卡片上；要回待命請拖到中間欄空白處（需先清空車上傷患）。';
+    hint.textContent = '要送醫院請按下方「送達醫院」；要回待命請按「返回待命」（車上需先清空傷患）。';
     handoverBtn.classList.add('hidden');
   }
 

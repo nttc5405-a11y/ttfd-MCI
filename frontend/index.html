@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>大量傷病患管理系統</title>
   <script src="https://cdn.tailwindcss.com/3.4.1"></script>
-  <script src="https://bernardo-castilho.github.io/DragDropTouch/DragDropTouch.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="stylesheet" href="style.css">
@@ -59,13 +58,18 @@
     </div>
   </header>
 
+  <div id="selectionHint" class="hidden">
+    <span id="selectionHintText"></span>
+    <button id="cancelSelectionBtn">取消選取</button>
+  </div>
+
   <main class="board-main">
     <section class="board-col">
-      <div class="board-col-title">🧍 患者區</div>
+      <div class="board-col-title">🧍 患者區（點選傷患，再點救護車即可指派）</div>
       <div id="patientColumn" class="board-col-body"></div>
     </section>
     <section class="board-col">
-      <div class="board-col-title">🚑 救護車（拖到空白處＝回待命）</div>
+      <div class="board-col-title">🚑 救護車（點卡片開啟操作選單）</div>
       <div id="ambulanceColumn" class="board-col-body"></div>
     </section>
     <section class="board-col">
@@ -93,8 +97,19 @@
     <div class="font-bold text-lg mb-2" id="ambulanceDetailTitle"></div>
     <div id="ambulanceDetailBody" class="mb-2"></div>
     <div class="text-xs text-slate-500 mb-3" id="ambulanceDetailHint"></div>
+    <button id="sendToHospitalBtn" class="hidden w-full py-2 rounded bg-indigo-600 text-white font-bold mb-2">🏥 送達醫院</button>
+    <button id="returnStandbyBtn" class="hidden w-full py-2 rounded bg-blue-600 text-white font-bold mb-2">↩ 返回待命</button>
     <button id="openHandoverBtn" class="hidden w-full py-2 rounded bg-emerald-600 text-white font-bold mb-2">📝 產生交接單（簽名）</button>
     <button id="ambulanceDetailCloseBtn" class="w-full py-2 rounded bg-slate-200">關閉</button>
+  </div>
+</div>
+
+<!-- ══════════════════ 彈窗：選擇送達的醫院 ══════════════════ -->
+<div id="hospitalPickerModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="font-bold text-lg mb-2">選擇送達的醫院</div>
+    <div id="hospitalPickerList" class="mb-3"></div>
+    <button id="hospitalPickerCancelBtn" class="w-full py-2 rounded bg-slate-200">取消</button>
   </div>
 </div>
 

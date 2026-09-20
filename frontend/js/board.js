@@ -1,6 +1,7 @@
 APP.Board = APP.Board || {};
 APP.Board.state = { patients: [], ambulances: [], hospitals: [], masked: true };
 APP.Board.pollTimer = null;
+APP.Board.selectedPatientId = null; // 點選式指派：目前選取中、等待指派給救護車的傷患
 
 var COLOR_LABEL = { RED: '紅', YELLOW: '黃', GREEN: '綠', BLACK: '黑' };
 var COLOR_CLASS = { RED: 'triage-red', YELLOW: 'triage-yellow', GREEN: 'triage-green', BLACK: 'triage-black' };
@@ -21,8 +22,6 @@ APP.Board.stop = function () {
 APP.Board.refresh = function () {
   var session = APP.Auth.getSession();
   if (!session) return;
-  // 拖曳中先不重畫，避免手指底下的卡片被整批換掉造成頓挫（見 dragdrop.js）
-  if (APP.DragDrop && APP.DragDrop.isDragging) return;
   APP.Api.get('getBoardState', {
     incidentId: session.incidentId,
     passcode: APP.Auth.isMasked() ? '' : session.passcode,
@@ -43,6 +42,40 @@ APP.Board.render = function () {
   APP.Board.renderPatients();
   APP.Board.renderAmbulances();
   APP.Board.renderHospitals();
+  APP.Board.renderSelectionHint();
+};
+
+// 點選式指派：點一下傷患卡片＝選取／再點一下＝取消選取；選取後點救護車卡片＝完成指派
+APP.Board.togglePatientSelection = function (patientId) {
+  APP.Board.selectedPatientId = (APP.Board.selectedPatientId === patientId) ? null : patientId;
+  APP.Board.render();
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+  var cancelBtn = document.getElementById('cancelSelectionBtn');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function () {
+      APP.Board.selectedPatientId = null;
+      APP.Board.render();
+    });
+  }
+});
+
+APP.Board.renderSelectionHint = function () {
+  var bar = document.getElementById('selectionHint');
+  var text = document.getElementById('selectionHintText');
+  if (!APP.Board.selectedPatientId) {
+    bar.classList.add('hidden');
+    return;
+  }
+  var p = APP.Board.state.patients.find(function (x) { return x.triageId === APP.Board.selectedPatientId; });
+  if (!p) {
+    APP.Board.selectedPatientId = null;
+    bar.classList.add('hidden');
+    return;
+  }
+  text.textContent = '已選取 ' + p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色），請點選要指派的救護車';
+  bar.classList.remove('hidden');
 };
 
 APP.Board.renderPatients = function () {
@@ -58,17 +91,21 @@ APP.Board.renderPatients = function () {
 
 APP.Board.buildPatientCard = function (p) {
   var div = document.createElement('div');
-  div.className = 'patient-card ' + (COLOR_CLASS[p.color] || '');
-  div.setAttribute('draggable', 'true');
+  var selected = p.triageId === APP.Board.selectedPatientId;
+  div.className = 'patient-card ' + (COLOR_CLASS[p.color] || '') + (selected ? ' selected' : '');
   div.dataset.patientId = p.triageId;
   var nameLine = APP.Board.state.masked ? '' : ('<div style="font-size:12px">' + (p.name || '（無名氏）') + '</div>');
   div.innerHTML =
+    '<div style="display:flex; justify-content:space-between; align-items:flex-start;">' +
     '<div style="font-weight:700">' + p.triageId + (p.tagNumber ? ' / 貼紙' + p.tagNumber : '') + '</div>' +
+    '<button class="retriage-btn" title="重新檢傷分類">🔄</button>' +
+    '</div>' +
     '<div style="font-size:14px">' + (COLOR_LABEL[p.color] || p.color) + '色</div>' +
     nameLine;
-  div.addEventListener('click', function () { APP.PatientForm.openRetriage(p); });
-  div.addEventListener('dragstart', function (ev) {
-    ev.dataTransfer.setData('text/plain', JSON.stringify({ type: 'patient', patientId: p.triageId }));
+  div.addEventListener('click', function () { APP.Board.togglePatientSelection(p.triageId); });
+  div.querySelector('.retriage-btn').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    APP.PatientForm.openRetriage(p);
   });
   return div;
 };
@@ -90,18 +127,21 @@ APP.Board.renderAmbulances = function () {
   onSceneOrDispatched.forEach(function (a) { col.appendChild(APP.Board.buildAmbulanceCard(a)); });
 };
 
+// 點救護車卡片：如果目前有選取中的傷患＝完成指派；沒有的話＝打開救護車控制面板
 APP.Board.buildAmbulanceCard = function (a) {
   var div = document.createElement('div');
   div.className = 'ambulance-card amb-status-' + a.status;
-  div.setAttribute('draggable', 'true');
   div.dataset.ambulanceId = a.vehicleCode;
   div.innerHTML =
     '<div style="font-weight:700">' + a.displayName + '</div>' +
     '<div style="font-size:14px">' + (AMB_STATUS_LABEL[a.status] || a.status) + '</div>' +
     '<div style="font-size:12px">車上傷患：' + (a.patientIds.length ? a.patientIds.join('、') : '無') + '</div>';
-  div.addEventListener('click', function () { APP.DragDrop.openAmbulanceDetail(a); });
-  div.addEventListener('dragstart', function (ev) {
-    ev.dataTransfer.setData('text/plain', JSON.stringify({ type: 'ambulance', ambulanceId: a.vehicleCode }));
+  div.addEventListener('click', function () {
+    if (APP.Board.selectedPatientId) {
+      APP.DragDrop.movePatient(APP.Board.selectedPatientId, a.vehicleCode, false);
+    } else {
+      APP.DragDrop.openAmbulanceDetail(a);
+    }
   });
   return div;
 };

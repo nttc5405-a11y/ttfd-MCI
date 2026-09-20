@@ -26,8 +26,25 @@ header {
 .empty-hint { color: #94a3b8; font-size: 13px; text-align: center; padding: 24px 8px; }
 
 .patient-card, .ambulance-card, .hospital-card {
-  border-radius: 8px; padding: 10px; cursor: grab; background: #fff;
+  border-radius: 8px; padding: 10px; cursor: pointer; background: #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,.12); border-left: 6px solid #94a3b8;
+  outline: 3px solid transparent; transition: outline-color .15s;
+}
+.patient-card.selected {
+  outline-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.25), 0 1px 3px rgba(0,0,0,.12);
+}
+.retriage-btn {
+  background: none; border: none; font-size: 16px; line-height: 1; padding: 2px 4px;
+  cursor: pointer; border-radius: 4px;
+}
+.retriage-btn:active { background: rgba(0,0,0,.08); }
+
+#selectionHint {
+  background: #dbeafe; border-bottom: 2px solid #2563eb; padding: 8px 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px;
+}
+#cancelSelectionBtn {
+  padding: 4px 10px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: 12px; flex-shrink: 0;
 }
 .triage-red { border-left-color: #dc2626; background: #fef2f2; }
 .triage-yellow { border-left-color: #eab308; background: #fefce8; }
