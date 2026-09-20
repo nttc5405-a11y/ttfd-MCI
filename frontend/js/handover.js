@@ -111,12 +111,15 @@ APP.Handover.submit = function () {
   }).then(function () {
     return html2canvas(document.getElementById('handoverPdfTemplate'), { scale: 2, backgroundColor: '#ffffff' });
   }).then(function (renderedCanvas) {
-    var imgData = renderedCanvas.toDataURL('image/png');
+    // 用JPEG不用PNG：jsPDF的addImage對canvas來的PNG幾乎是整張未壓縮塞進PDF
+    // （實測一張 1400x1060 的收據能膨脹到 7.9MB），JPEG會用自己的壓縮，
+    // 同一張收據壓到約100KB且肉眼看不出畫質差異（内容是文字/線條，不是相片）。
+    var imgData = renderedCanvas.toDataURL('image/jpeg', 0.92);
     var pdf = new jspdf.jsPDF();
     var pageWidth = pdf.internal.pageSize.getWidth();
     var imgWidth = pageWidth - 20;
     var imgHeight = renderedCanvas.height * imgWidth / renderedCanvas.width;
-    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+    pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight);
     var pdfBase64 = pdf.output('datauristring');
 
     return APP.Api.post('saveHandover', APP.DragDrop.withSession({
