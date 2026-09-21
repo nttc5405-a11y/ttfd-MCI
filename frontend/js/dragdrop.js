@@ -8,7 +8,7 @@ APP.DragDrop.init = function () {
     APP.DragDrop.openHospitalPicker(APP.DragDrop.currentAmbulance);
   });
   document.getElementById('returnStandbyBtn').addEventListener('click', function () {
-    APP.DragDrop.returnToStandby(APP.DragDrop.currentAmbulance.vehicleCode);
+    APP.DragDrop.returnToStandby(APP.DragDrop.currentAmbulance.vehicleCode, APP.DragDrop.currentAmbulance.displayName);
   });
   document.getElementById('hospitalPickerCancelBtn').addEventListener('click', APP.DragDrop.closeHospitalPicker);
 };
@@ -39,22 +39,24 @@ APP.DragDrop.movePatient = function (patientId, ambulanceId, confirmSecondRed) {
   }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
 };
 
-// 跳出車牌後4碼輸入視窗，輸入正確才會呼叫 runFn(plateLast4)
-APP.DragDrop.askPlateAndRun = function (ambulanceId, runFn) {
+// 跳出車牌後4碼輸入視窗，輸入正確才會呼叫 runFn(plateLast4)。
+// displayLabel（選填）是彈窗上要顯示給使用者看的名稱，跟實際送給後端比對用的
+// ambulanceId 分開，避免使用者看到系統內部自動組合過的代碼而困惑。
+APP.DragDrop.askPlateAndRun = function (ambulanceId, runFn, displayLabel) {
   APP.UI.promptPlate(ambulanceId, function (plateLast4) {
     runFn(plateLast4).then(function (res) {
       if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
       APP.Board.refresh();
     }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
-  });
+  }, displayLabel);
 };
 
-APP.DragDrop.returnToStandby = function (ambulanceId) {
+APP.DragDrop.returnToStandby = function (ambulanceId, displayLabel) {
   APP.DragDrop.askPlateAndRun(ambulanceId, function (plateLast4) {
     return APP.Api.post('moveAmbulanceToStandby', APP.DragDrop.withSession({
       ambulanceId: ambulanceId, plateLast4: plateLast4,
     }));
-  });
+  }, displayLabel);
   APP.DragDrop.closeAmbulanceDetail();
 };
 
@@ -81,7 +83,7 @@ APP.DragDrop.openHospitalPicker = function (ambulance) {
           return APP.Api.post('moveAmbulanceToHospital', APP.DragDrop.withSession({
             ambulanceId: ambulance.vehicleCode, plateLast4: plateLast4, hospitalId: h.hospitalId,
           }));
-        });
+        }, ambulance.displayName);
       });
       row.appendChild(btn);
       list.appendChild(row);

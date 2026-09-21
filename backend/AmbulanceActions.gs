@@ -3,6 +3,11 @@
 // ═══════════════════════════════════════════════════════════════
 
 // 比對救護車主檔的車牌後4碼，正確回傳 {ok:true}，不正確回傳 {error:{...}}
+//
+// 注意：車輛代碼比對兩邊都要用 String() 轉型再比較。純數字的代碼（例如「91」）
+// 經過 Google試算表存格會被自動存成數字型別，前端再把它送回來時（JSON）也會是
+// 數字而不是文字，如果只轉型其中一邊，"91"（文字）跟 91（數字）用 === 比較會是
+// false，就會誤判成「查無此車輛代碼」。這個坑不只這裡，下面幾個函式也都要注意。
 function verifyAmbulancePlate(vehicleCode, plateLast4) {
   const doc = getDoc();
   const sheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.AMBULANCE);
@@ -10,7 +15,7 @@ function verifyAmbulancePlate(vehicleCode, plateLast4) {
 
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === vehicleCode) {
+    if (String(data[i][0]) === String(vehicleCode)) {
       if (String(data[i][3]) === String(plateLast4 || '')) return { ok: true };
       return { error: { status: 'error', code: 'INVALID_PLATE', message: '車牌後4碼不正確，操作已取消。' } };
     }
@@ -121,13 +126,13 @@ function addAmbulanceToIncident(payload) {
   const data = masterSheet.getDataRange().getValues();
   let found = null;
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === payload.vehicleCode) { found = data[i]; break; }
+    if (String(data[i][0]) === String(payload.vehicleCode)) { found = data[i]; break; }
   }
   if (!found) return { status: 'error', code: 'VEHICLE_NOT_FOUND', message: '救護車主檔查無此車輛代碼。' };
 
   const displayName = found[2] + ' ' + found[0];
   const ambulance = {
-    vehicleCode: payload.vehicleCode,
+    vehicleCode: String(payload.vehicleCode),
     displayName: displayName,
     status: 'STANDBY',
     patientIds: [],
@@ -169,7 +174,7 @@ function addAmbulancesToIncident(payload) {
     }
     let found = null;
     for (let i = 1; i < masterData.length; i++) {
-      if (String(masterData[i][0]) === vehicleCode) { found = masterData[i]; break; }
+      if (String(masterData[i][0]) === String(vehicleCode)) { found = masterData[i]; break; }
     }
     if (!found) {
       skipped.push({ vehicleCode: vehicleCode, reason: '主檔查無此代碼' });
@@ -177,7 +182,7 @@ function addAmbulancesToIncident(payload) {
     }
     const displayName = found[2] + ' ' + found[0];
     const ambulance = {
-      vehicleCode: vehicleCode, displayName: displayName, status: 'STANDBY',
+      vehicleCode: String(vehicleCode), displayName: displayName, status: 'STANDBY',
       patientIds: [], hospitalId: '', arrivedAt: '', crew: found[4] || '', updatedAt: new Date(),
     };
     appendBlockRow(sheet, BLOCK.AMBULANCE, ambulanceObjectToRow(ambulance));
@@ -256,7 +261,7 @@ function updateAmbulanceMaster(payload) {
 
   const data = masterSheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === vehicleCode) {
+    if (String(data[i][0]) === String(vehicleCode)) {
       const row = i + 1;
       if (payload.unitType !== undefined) masterSheet.getRange(row, 2).setValue(payload.unitType);
       if (payload.unitName !== undefined) masterSheet.getRange(row, 3).setValue(payload.unitName);

@@ -50,7 +50,7 @@ function isPasscodeValidForIncident(incidentId, passcode) {
   if (!indexSheet) return false;
   const data = indexSheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === incidentId) {
+    if (String(data[i][0]) === String(incidentId)) {
       return String(data[i][4] || '') === String(passcode);
     }
   }

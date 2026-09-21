@@ -9,11 +9,14 @@ APP.UI.confirm = function (message, onYes) {
 };
 
 // 車牌後4碼確認彈窗（拖曳救護車的動作都必須先過這關，避免誤觸）
-APP.UI.promptPlate = function (ambulanceId, onConfirmed) {
+// displayLabel 是給使用者看的名稱（例如「南區分隊 91」），跟實際送給後端比對用的
+// ambulanceId 分開——ambulanceId 有時候是系統為了區分不同單位相同車號而自動組合過的
+// 內部代碼，不適合直接顯示給使用者看，會造成困惑。
+APP.UI.promptPlate = function (ambulanceId, onConfirmed, displayLabel) {
   var modal = document.getElementById('plateModal');
   var input = document.getElementById('plateInput');
   var label = document.getElementById('plateModalVehicle');
-  label.textContent = ambulanceId;
+  label.textContent = displayLabel || ambulanceId;
   input.value = '';
   modal.classList.remove('hidden');
   setTimeout(function () { input.focus(); }, 50);

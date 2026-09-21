@@ -51,7 +51,7 @@ function addHospitalToIncident(payload) {
   const data = masterSheet.getDataRange().getValues();
   let found = null;
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === payload.hospitalId) { found = data[i]; break; }
+    if (String(data[i][0]) === String(payload.hospitalId)) { found = data[i]; break; }
   }
   if (!found) return { status: 'error', code: 'HOSPITAL_NOT_FOUND', message: '醫院主檔查無此醫院ID。' };
 
@@ -95,7 +95,7 @@ function addHospitalsToIncident(payload) {
     }
     let found = null;
     for (let i = 1; i < masterData.length; i++) {
-      if (String(masterData[i][0]) === hospitalId) { found = masterData[i]; break; }
+      if (String(masterData[i][0]) === String(hospitalId)) { found = masterData[i]; break; }
     }
     if (!found) {
       skipped.push({ hospitalId: hospitalId, reason: '主檔查無此ID' });
@@ -149,7 +149,7 @@ function updateHospitalMaster(payload) {
 
   const data = masterSheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === hospitalId) {
+    if (String(data[i][0]) === String(hospitalId)) {
       const row = i + 1;
       if (payload.name !== undefined) masterSheet.getRange(row, 2).setValue(payload.name);
       if (payload.address !== undefined) masterSheet.getRange(row, 3).setValue(payload.address);
