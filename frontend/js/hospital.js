@@ -28,6 +28,11 @@ APP.Hospital.init = function () {
     if (btn) btn.addEventListener('click', function () { APP.Hospital.applyStatus(s); });
   });
 
+  document.getElementById('hospitalOverviewBtn').addEventListener('click', APP.Hospital.openOverview);
+  document.getElementById('hospitalOverviewCloseBtn').addEventListener('click', function () {
+    document.getElementById('hospitalOverviewModal').classList.add('hidden');
+  });
+
   document.getElementById('addAmbulanceBtn').addEventListener('click', APP.Hospital.openAddAmbulanceModal);
   document.getElementById('ambulanceAddCancelBtn').addEventListener('click', APP.Hospital.closeAddAmbulanceModal);
   document.getElementById('ambulanceAddSubmitBtn').addEventListener('click', APP.Hospital.submitAddSelectedAmbulances);
@@ -205,4 +210,41 @@ APP.Hospital.submitAddSelectedAmbulances = function () {
       APP.UI.alert('已加入 ' + r.added.length + ' 輛；略過 ' + r.skipped.length + ' 輛（已在本案件中或主檔查無資料）。');
     }
   }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+};
+
+// ─── 各院收治情形總覽（純前端彙整既有看板資料，不用另外呼叫後端） ──────────
+// 用 p.hospitalId 而不是 ambulance.patientIds 篩選，這樣即使傷患已經「卸下」
+// （離開救護車的車上清單），只要送達醫院ID還在，一樣會列在該院名下。
+APP.Hospital.openOverview = function () {
+  var body = document.getElementById('hospitalOverviewBody');
+  var hospitals = APP.Board.state.hospitals;
+
+  if (hospitals.length === 0) {
+    body.innerHTML = '<div class="empty-hint">本案件尚未加入任何醫院。</div>';
+  } else {
+    body.innerHTML = hospitals.map(function (h) {
+      var patients = APP.Board.state.patients.filter(function (p) { return p.hospitalId === h.hospitalId; });
+      var rows = patients.length === 0
+        ? '<div class="empty-hint" style="padding:8px 0;">目前無傷患</div>'
+        : patients.map(function (p) {
+          var nameLine = APP.Board.state.masked ? '' : ('　' + (p.name || '無名氏'));
+          return '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:14px;">' +
+            '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;background:' +
+            (COLOR_DOT[p.color] || '#94a3b8') + ';"></span>' +
+            p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' +
+            (p.tagNumber ? '　貼紙:' + p.tagNumber : '') + nameLine +
+            '</div>';
+        }).join('');
+      return '<div style="margin-bottom:14px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
+        '<div style="background:#f8fafc;padding:8px 12px;font-weight:700;display:flex;justify-content:space-between;gap:8px;">' +
+        '<span>' + h.name + '</span>' +
+        '<span style="font-weight:400;font-size:13px;color:#64748b;">' +
+        (HOSP_STATUS_LABEL[h.status] || h.status) + '　共 ' + patients.length + ' 人</span>' +
+        '</div>' +
+        '<div style="padding:2px 12px;">' + rows + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  document.getElementById('hospitalOverviewModal').classList.remove('hidden');
 };

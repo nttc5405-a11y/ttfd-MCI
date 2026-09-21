@@ -5,6 +5,7 @@ APP.Board.selectedPatientId = null; // 點選式指派：目前選取中、等�
 
 var COLOR_LABEL = { RED: '紅', YELLOW: '黃', GREEN: '綠', BLACK: '黑' };
 var COLOR_CLASS = { RED: 'triage-red', YELLOW: 'triage-yellow', GREEN: 'triage-green', BLACK: 'triage-black' };
+var COLOR_DOT = { RED: '#dc2626', YELLOW: '#eab308', GREEN: '#16a34a', BLACK: '#1e293b' };
 var AMB_STATUS_LABEL = { STANDBY: '待命中', DISPATCHED: '已出勤', AT_HOSPITAL: '已到院' };
 var HOSP_STATUS_LABEL = { AVAILABLE: '可收治', LIMITED: '收治有限', FULL: '已滿', UNKNOWN: '未回報' };
 

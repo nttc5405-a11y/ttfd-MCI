@@ -54,6 +54,7 @@
       <button id="addPatientBtn" class="px-3 py-1 rounded bg-emerald-600 text-sm font-bold">＋ 建立傷患</button>
       <button id="addAmbulanceBtn" class="px-3 py-1 rounded bg-blue-600 text-sm">＋ 加入救護車</button>
       <button id="addHospitalBtn" class="px-3 py-1 rounded bg-indigo-600 text-sm">＋ 加入醫院</button>
+      <button id="hospitalOverviewBtn" class="px-3 py-1 rounded bg-slate-600 text-sm">📊 醫院總覽</button>
       <button id="logoutBtn" class="px-3 py-1 rounded bg-slate-600 text-sm">登出</button>
     </div>
   </header>
@@ -139,10 +140,15 @@
     <div id="extraFieldsBlock" class="space-y-2 mb-4">
       <input type="text" id="tagNumberInput" placeholder="現場檢傷貼紙編號（選填）">
       <input type="text" id="patientNameInput" placeholder="姓名（未知可留空）">
-      <div class="flex gap-2">
-        <input type="text" id="patientGenderInput" placeholder="性別（選填）">
-        <input type="text" id="patientAgeInput" placeholder="年齡（選填）">
+      <div>
+        <div class="text-xs text-slate-500 mb-1">性別</div>
+        <div class="flex gap-2">
+          <button type="button" id="genderBtn_MALE" class="gender-btn">男</button>
+          <button type="button" id="genderBtn_FEMALE" class="gender-btn">女</button>
+          <button type="button" id="genderBtn_UNKNOWN" class="gender-btn">不明</button>
+        </div>
       </div>
+      <input type="text" id="patientAgeInput" placeholder="年齡（選填）">
       <textarea id="patientNoteInput" placeholder="生命徵象/備註（選填）" rows="2"></textarea>
     </div>
 
@@ -193,6 +199,15 @@
       <button id="editHospitalCancelBtn" class="flex-1 py-2 rounded bg-slate-200">取消</button>
       <button id="editHospitalSaveBtn" class="flex-1 py-2 rounded bg-indigo-600 text-white font-bold">儲存</button>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════════ 彈窗：各院收治情形總覽 ══════════════════ -->
+<div id="hospitalOverviewModal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:640px;">
+    <div class="font-bold text-lg mb-3">📊 各院收治情形總覽</div>
+    <div id="hospitalOverviewBody"></div>
+    <button id="hospitalOverviewCloseBtn" class="w-full py-2 rounded bg-slate-200 mt-3">關閉</button>
   </div>
 </div>
 

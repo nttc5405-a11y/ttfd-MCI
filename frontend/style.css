@@ -69,6 +69,12 @@ header {
 
 .color-btn { flex: 1; padding: 14px 0; border-radius: 8px; font-weight: 700; color: #fff; opacity: .55; border: 3px solid transparent; }
 .color-btn.ring-4 { opacity: 1; border-color: #1e293b; }
+
+.gender-btn {
+  flex: 1; padding: 10px 0; border-radius: 8px; font-weight: 700;
+  background: #fff; color: #334155; border: 2px solid #cbd5e1;
+}
+.gender-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
 #colorBtn_RED { background: #dc2626; }
 #colorBtn_YELLOW { background: #eab308; }
 #colorBtn_GREEN { background: #16a34a; }

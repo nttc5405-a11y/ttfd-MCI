@@ -186,3 +186,38 @@ function removePatientFromAmbulance(payload) {
 
   return { status: 'success', data: patient };
 }
+
+// 卸下病患：救護車已抵達醫院、傷患也已正式送達（正常完成交接），
+// 只是把傷患從「車上目前載的人」清單移掉，讓救護車可以在清空後返回待命，
+// 或繼續載其他傷患去別家醫院——跟 removePatientFromAmbulance 不同，
+// 這裡不會把傷患退回現場，AT_HOSPITAL / 送達醫院ID 都保留不變。
+function dischargePatientFromAmbulance(payload) {
+  const incidentId = sanitizeSheetName(payload.incidentId);
+  const res = getIncidentSheetOrError(incidentId);
+  if (res.error) return res.error;
+  const sheet = res.sheet;
+
+  const patientFound = findBlockRowByKey(sheet, BLOCK.PATIENT, 0, payload.patientId);
+  if (!patientFound) return { status: 'error', code: 'PATIENT_NOT_FOUND', message: '找不到此傷患。' };
+  const patient = patientRowToObject(patientFound.rowValues);
+
+  if (patient.status !== 'AT_HOSPITAL') {
+    return { status: 'error', code: 'NOT_DELIVERED', message: '此傷患尚未送達醫院，無法卸下（如果是指派錯誤，請用「移除」）。' };
+  }
+  if (!patient.ambulanceCode) {
+    return { status: 'error', code: 'NOT_ON_AMBULANCE', message: '此傷患目前沒有掛在任何救護車的清單上。' };
+  }
+
+  const ambFound = findBlockRowByKey(sheet, BLOCK.AMBULANCE, 0, patient.ambulanceCode);
+  if (ambFound) {
+    const ambulance = ambulanceRowToObject(ambFound.rowValues);
+    ambulance.patientIds = ambulance.patientIds.filter(function (pid) { return pid !== patient.triageId; });
+    ambulance.updatedAt = new Date();
+    updateBlockRow(sheet, BLOCK.AMBULANCE, ambFound.rowIndex, ambulanceObjectToRow(ambulance));
+  }
+
+  appendAuditLog(sheet, payload.operatorName || '', 'DISCHARGE_PATIENT', patient.triageId,
+    patient.triageId + ' 已在 ' + (patient.hospitalId || '') + ' 完成卸下交接', {});
+
+  return { status: 'success', data: patient };
+}

@@ -114,22 +114,44 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
   } else {
     patients.forEach(function (p) {
       var row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding:8px 0;gap:8px;';
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding:8px 0;gap:8px;flex-wrap:wrap;';
       var label = document.createElement('span');
       label.textContent = p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' +
         (APP.Board.state.masked ? '' : ' ' + (p.name || '無名氏'));
       row.appendChild(label);
-      var btn = document.createElement('button');
-      btn.textContent = ambulance.status === 'AT_HOSPITAL' ? '移除（更正指派錯誤）' : '移除（故障/換車）';
-      btn.style.cssText = 'padding:6px 10px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-size:12px;';
-      btn.addEventListener('click', function () {
+
+      var btnGroup = document.createElement('div');
+      btnGroup.style.cssText = 'display:flex;gap:6px;';
+
+      if (ambulance.status === 'AT_HOSPITAL') {
+        // 已到院：正常完成交接用「卸下病患」（保留送達紀錄，只是把人從車上清單移掉）；
+        // 「移除」則是指派錯誤時的更正，會把傷患整個退回現場
+        var dischargeBtn = document.createElement('button');
+        dischargeBtn.textContent = '卸下病患（完成交接）';
+        dischargeBtn.style.cssText = 'padding:6px 10px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:12px;';
+        dischargeBtn.addEventListener('click', function () {
+          APP.Api.post('dischargePatientFromAmbulance', APP.DragDrop.withSession({ patientId: p.triageId })).then(function (res) {
+            if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
+            APP.Board.refresh();
+            APP.DragDrop.closeAmbulanceDetail();
+          });
+        });
+        btnGroup.appendChild(dischargeBtn);
+      }
+
+      var removeBtn = document.createElement('button');
+      removeBtn.textContent = ambulance.status === 'AT_HOSPITAL' ? '移除（指派錯誤更正）' : '移除（故障/換車）';
+      removeBtn.style.cssText = 'padding:6px 10px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-size:12px;';
+      removeBtn.addEventListener('click', function () {
         APP.Api.post('removePatientFromAmbulance', APP.DragDrop.withSession({ patientId: p.triageId })).then(function (res) {
           if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
           APP.Board.refresh();
           APP.DragDrop.closeAmbulanceDetail();
         });
       });
-      row.appendChild(btn);
+      btnGroup.appendChild(removeBtn);
+
+      row.appendChild(btnGroup);
       body.appendChild(row);
     });
   }
@@ -143,7 +165,8 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
   standbyBtn.classList.toggle('hidden', ambulance.status === 'STANDBY');
 
   if (ambulance.status === 'AT_HOSPITAL') {
-    hint.textContent = '已抵達 ' + ambulance.hospitalId + '，車上傷患已自動標記送達。';
+    hint.textContent = '已抵達 ' + ambulance.hospitalId + '，傷患已自動標記送達。完成交接後按「卸下病患」，' +
+      '車上清空後即可「返回待命」，之後才能再指派新的傷患出勤。';
     handoverBtn.classList.remove('hidden');
     handoverBtn.onclick = function () {
       APP.DragDrop.closeAmbulanceDetail();
