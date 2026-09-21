@@ -2,6 +2,9 @@
 //  讀取型查詢：主檔清單、看板狀態（含機敏資料遮蔽邏輯）
 // ═══════════════════════════════════════════════════════════════
 
+// masterRow 是這一列在試算表裡的實際列號，用來精準指定「就是這一列」，
+// 不受車輛代碼重複影響——不同單位常常把車叫一樣的代碼（例如都叫「91」），
+// 光靠代碼沒辦法分辨使用者勾選的到底是哪一輛。
 function getAmbulanceMaster() {
   const doc = getDoc();
   const sheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.AMBULANCE);
@@ -13,6 +16,7 @@ function getAmbulanceMaster() {
     if (!data[i][0]) continue;
     if (String(data[i][5]) !== '啟用') continue;
     list.push({
+      masterRow: i + 1,
       vehicleCode: data[i][0],
       unitType: data[i][1],
       unitName: data[i][2],

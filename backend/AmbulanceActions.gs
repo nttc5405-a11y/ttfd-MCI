@@ -147,15 +147,23 @@ function addAmbulanceToIncident(payload) {
   return { status: 'success', data: ambulance };
 }
 
-// 批次加入多輛救護車（勾選清單一次送出，不用一個一個點）
+// 批次加入多輛救護車（勾選清單一次送出，不用一個一個點）。
+//
+// 用「試算表列號」(masterRows) 而不是「車輛代碼」來指定使用者到底勾了哪幾列——
+// 不同單位常常把車都叫「91」這種常見號碼，若用代碼去比對，會分不出使用者
+// 勾的是哪一列，導致同代碼的車只有第一輛加得進來、其餘全被誤判成「已加入」而略過。
+//
+// 加入本案件時，如果代碼在「這個案件裡」已經有別輛車在用（同樣常見的撞號情況），
+// 系統會自動在代碼後面加上單位名稱區分（例如「91」跟「91-長濱」），操作救護車時
+// 系統用的是這個區分後的代碼，使用者不需要自己處理撞號。
 function addAmbulancesToIncident(payload) {
   const incidentId = sanitizeSheetName(payload.incidentId);
   const res = getIncidentSheetOrError(incidentId);
   if (res.error) return res.error;
   const sheet = res.sheet;
 
-  const vehicleCodes = payload.vehicleCodes;
-  if (!Array.isArray(vehicleCodes) || vehicleCodes.length === 0) {
+  const masterRows = payload.masterRows;
+  if (!Array.isArray(masterRows) || masterRows.length === 0) {
     return { status: 'error', code: 'NO_ITEMS', message: '請至少勾選一輛救護車。' };
   }
 
@@ -167,23 +175,31 @@ function addAmbulancesToIncident(payload) {
   const added = [];
   const skipped = [];
 
-  vehicleCodes.forEach(function (vehicleCode) {
+  masterRows.forEach(function (rowNum) {
+    const idx = Number(rowNum) - 1;
+    const row = masterData[idx];
+    if (idx < 1 || !row || !row[0]) {
+      skipped.push({ vehicleCode: '', reason: '主檔查無此列' });
+      return;
+    }
+
+    const rawCode = String(row[0]);
+    const unitName = String(row[2] || '');
+
+    let vehicleCode = rawCode;
     if (findBlockRowByKey(sheet, BLOCK.AMBULANCE, 0, vehicleCode)) {
-      skipped.push({ vehicleCode: vehicleCode, reason: '已在本案件中' });
-      return;
+      vehicleCode = rawCode + '-' + (unitName || '未命名單位');
+      let n = 2;
+      while (findBlockRowByKey(sheet, BLOCK.AMBULANCE, 0, vehicleCode)) {
+        vehicleCode = rawCode + '-' + (unitName || '未命名單位') + n;
+        n++;
+      }
     }
-    let found = null;
-    for (let i = 1; i < masterData.length; i++) {
-      if (String(masterData[i][0]) === String(vehicleCode)) { found = masterData[i]; break; }
-    }
-    if (!found) {
-      skipped.push({ vehicleCode: vehicleCode, reason: '主檔查無此代碼' });
-      return;
-    }
-    const displayName = found[2] + ' ' + found[0];
+
+    const displayName = unitName + ' ' + rawCode;
     const ambulance = {
-      vehicleCode: String(vehicleCode), displayName: displayName, status: 'STANDBY',
-      patientIds: [], hospitalId: '', arrivedAt: '', crew: found[4] || '', updatedAt: new Date(),
+      vehicleCode: vehicleCode, displayName: displayName, status: 'STANDBY',
+      patientIds: [], hospitalId: '', arrivedAt: '', crew: row[4] || '', updatedAt: new Date(),
     };
     appendBlockRow(sheet, BLOCK.AMBULANCE, ambulanceObjectToRow(ambulance));
     added.push(ambulance);

@@ -208,7 +208,7 @@ APP.Hospital.openAddAmbulanceModal = function () {
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.className = 'ambulance-add-checkbox';
-      cb.value = v.vehicleCode;
+      cb.value = v.masterRow; // 用試算表列號而不是車輛代碼，代碼在不同單位間常常重複
       var span = document.createElement('span');
       span.textContent = v.unitName + ' ' + v.vehicleCode + '（' + v.unitType + '）';
       label.appendChild(cb);
@@ -283,11 +283,11 @@ APP.Hospital.saveEditAmbulance = function () {
 };
 
 APP.Hospital.submitAddSelectedAmbulances = function () {
-  var codes = Array.prototype.slice.call(document.querySelectorAll('.ambulance-add-checkbox:checked'))
-    .map(function (cb) { return cb.value; });
-  if (codes.length === 0) { APP.UI.alert('請至少勾選一輛救護車。'); return; }
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.ambulance-add-checkbox:checked'))
+    .map(function (cb) { return Number(cb.value); });
+  if (rows.length === 0) { APP.UI.alert('請至少勾選一輛救護車。'); return; }
 
-  APP.Api.post('addAmbulancesToIncident', APP.DragDrop.withSession({ vehicleCodes: codes })).then(function (r) {
+  APP.Api.post('addAmbulancesToIncident', APP.DragDrop.withSession({ masterRows: rows })).then(function (r) {
     if (r.status !== 'success') { APP.UI.alert(r.message || '加入失敗'); return; }
     APP.Hospital.closeAddAmbulanceModal();
     APP.Board.refresh();
