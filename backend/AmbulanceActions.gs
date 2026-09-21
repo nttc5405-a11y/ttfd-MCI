@@ -193,30 +193,55 @@ function addAmbulancesToIncident(payload) {
 }
 
 // 前端直接新增一輛救護車到主檔，並立刻加進目前這個案件（現場常常需要臨時登記支援車輛）。
-// 車輛代碼是單位原本就有的車籍代碼，需使用者自己輸入（不像醫院ID可以自動編號H001…），
-// 所以要先檢查代碼是否已存在，避免不小心蓋掉既有車輛的資料。
+// 車輛代碼是單位原本就有的車籍代碼，需使用者自己輸入（不像醫院ID可以自動編號H001…）。
+//
+// 車輛代碼只在「同一個單位」內才需要不重複——不同單位各自把自己的車叫「91」是常態
+// （消防、衛生、軍方、不同分隊各自編號，本來就會撞號），不應該因此擋下使用者。
+// 只有「同一個單位、同一個代碼」才是真的重複，才會拒絕。不同單位代碼相同時，
+// 系統會自動在代碼後面加上單位名稱來區分（存到系統裡的識別碼會變成例如「91-乙分隊」，
+// 車牌驗證、指派傷患等操作都是用這個識別碼比對，使用者不用自己想辦法避開撞號）。
 function createAmbulanceMasterAndAdd(payload) {
-  const vehicleCode = (payload.vehicleCode || '').toString().trim();
-  if (!vehicleCode) return { status: 'error', code: 'INVALID_VEHICLE_CODE', message: '請輸入車輛代碼。' };
+  const rawCode = (payload.vehicleCode || '').toString().trim();
+  if (!rawCode) return { status: 'error', code: 'INVALID_VEHICLE_CODE', message: '請輸入車輛代碼。' };
+  const unitName = (payload.unitName || '').toString().trim();
 
   const doc = getDoc();
   const masterSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.AMBULANCE) || ensureAmbulanceMasterSheet(doc);
   const data = masterSheet.getDataRange().getValues();
-
+  const existingCodes = {};
+  let sameUnitDuplicate = false;
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === vehicleCode) {
-      return { status: 'error', code: 'DUPLICATE_VEHICLE_CODE', message: '這個車輛代碼已經存在，請改用「編輯」修改，或換一個代碼。' };
+    existingCodes[String(data[i][0])] = true;
+    if (String(data[i][0]) === rawCode && String(data[i][2]) === unitName) {
+      sameUnitDuplicate = true;
+    }
+  }
+  if (sameUnitDuplicate) {
+    return { status: 'error', code: 'DUPLICATE_VEHICLE_CODE', message: '這個單位已經有相同代碼的車輛了，請改用「編輯」修改，或換一個代碼。' };
+  }
+
+  let vehicleCode = rawCode;
+  if (existingCodes[vehicleCode]) {
+    vehicleCode = rawCode + '-' + (unitName || '未命名單位');
+    let n = 2;
+    while (existingCodes[vehicleCode]) {
+      vehicleCode = rawCode + '-' + (unitName || '未命名單位') + n;
+      n++;
     }
   }
 
   masterSheet.appendRow([
-    vehicleCode, payload.unitType || '', payload.unitName || '',
+    vehicleCode, payload.unitType || '', unitName,
     payload.plateLast4 || '', payload.crew || '', '啟用', '前端新增',
   ]);
 
-  return addAmbulanceToIncident({
+  const addRes = addAmbulanceToIncident({
     incidentId: payload.incidentId, vehicleCode: vehicleCode, operatorName: payload.operatorName,
   });
+  if (addRes.status === 'success') {
+    addRes.assignedVehicleCode = vehicleCode; // 讓前端知道實際存入的代碼是否被自動改過
+  }
+  return addRes;
 }
 
 // 修正救護車主檔資料（單位類別/隊名/車牌後4碼/隨車人員）。注意：已經加入某案件的

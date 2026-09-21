@@ -250,6 +250,9 @@ APP.Hospital.submitCreateAmbulance = function () {
     document.getElementById('newAmbulanceCrew').value = '';
     APP.Hospital.closeAddAmbulanceModal();
     APP.Board.refresh();
+    if (r.assignedVehicleCode && r.assignedVehicleCode !== vehicleCode) {
+      APP.UI.alert('提醒：這個代碼「' + vehicleCode + '」已經有別的單位在用，系統自動改成「' + r.assignedVehicleCode + '」來區分，救護車已成功加入。');
+    }
   }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
 };
 
