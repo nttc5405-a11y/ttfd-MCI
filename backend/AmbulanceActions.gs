@@ -191,3 +191,54 @@ function addAmbulancesToIncident(payload) {
 
   return { status: 'success', added: added, skipped: skipped };
 }
+
+// 前端直接新增一輛救護車到主檔，並立刻加進目前這個案件（現場常常需要臨時登記支援車輛）。
+// 車輛代碼是單位原本就有的車籍代碼，需使用者自己輸入（不像醫院ID可以自動編號H001…），
+// 所以要先檢查代碼是否已存在，避免不小心蓋掉既有車輛的資料。
+function createAmbulanceMasterAndAdd(payload) {
+  const vehicleCode = (payload.vehicleCode || '').toString().trim();
+  if (!vehicleCode) return { status: 'error', code: 'INVALID_VEHICLE_CODE', message: '請輸入車輛代碼。' };
+
+  const doc = getDoc();
+  const masterSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.AMBULANCE) || ensureAmbulanceMasterSheet(doc);
+  const data = masterSheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === vehicleCode) {
+      return { status: 'error', code: 'DUPLICATE_VEHICLE_CODE', message: '這個車輛代碼已經存在，請改用「編輯」修改，或換一個代碼。' };
+    }
+  }
+
+  masterSheet.appendRow([
+    vehicleCode, payload.unitType || '', payload.unitName || '',
+    payload.plateLast4 || '', payload.crew || '', '啟用', '前端新增',
+  ]);
+
+  return addAmbulanceToIncident({
+    incidentId: payload.incidentId, vehicleCode: vehicleCode, operatorName: payload.operatorName,
+  });
+}
+
+// 修正救護車主檔資料（單位類別/隊名/車牌後4碼/隨車人員）。注意：已經加入某案件的
+// 救護車卡片顯示名稱是加入當下複製的一份快照，修改主檔不會回頭更新已存在的案件紀錄。
+function updateAmbulanceMaster(payload) {
+  const vehicleCode = payload.vehicleCode;
+  if (!vehicleCode) return { status: 'error', code: 'INVALID_VEHICLE_CODE', message: '缺少車輛代碼。' };
+
+  const doc = getDoc();
+  const masterSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.AMBULANCE);
+  if (!masterSheet) return { status: 'error', code: 'NO_MASTER', message: '找不到救護車主檔。' };
+
+  const data = masterSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === vehicleCode) {
+      const row = i + 1;
+      if (payload.unitType !== undefined) masterSheet.getRange(row, 2).setValue(payload.unitType);
+      if (payload.unitName !== undefined) masterSheet.getRange(row, 3).setValue(payload.unitName);
+      if (payload.plateLast4 !== undefined) masterSheet.getRange(row, 4).setValue(payload.plateLast4);
+      if (payload.crew !== undefined) masterSheet.getRange(row, 5).setValue(payload.crew);
+      return { status: 'success' };
+    }
+  }
+  return { status: 'error', code: 'NOT_FOUND', message: '救護車主檔查無此車輛代碼。' };
+}

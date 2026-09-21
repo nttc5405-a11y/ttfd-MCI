@@ -43,6 +43,7 @@ function isTokenValid(token) {
 // doGet：純 JSON API（前端頁面改由 Render 上的靜態網站提供）
 // ────────────────────────────────────────────────────────────────
 function doGet(e) {
+  resetBlockCache();
   const params = (e && e.parameter) ? e.parameter : {};
 
   // 無 action 參數：純粹的連線測試文字，方便部署後快速確認網址正確
@@ -66,6 +67,8 @@ function doGet(e) {
         return respond(getIncidentList());
       case 'getBoardState':
         return respond(getBoardState(params.incidentId, params.passcode));
+      case 'getPatientPhoto':
+        return respond(getPatientPhoto(params.incidentId, params.patientId, params.passcode));
       default:
         return respond({ status: 'error', code: 'UNKNOWN_ACTION', message: '不支援的 action: ' + params.action });
     }
@@ -78,6 +81,7 @@ function doGet(e) {
 // doPost：所有寫入型 API，統一走 LockService 排隊、指令式狀態轉換
 // ────────────────────────────────────────────────────────────────
 function doPost(e) {
+  resetBlockCache();
   let payload;
   try {
     payload = JSON.parse(e.postData.contents);
@@ -131,6 +135,10 @@ function doPost(e) {
         return respond(createHospitalMasterAndAdd(payload));
       case 'updateHospitalMaster':
         return respond(updateHospitalMaster(payload));
+      case 'createAmbulanceMasterAndAdd':
+        return respond(createAmbulanceMasterAndAdd(payload));
+      case 'updateAmbulanceMaster':
+        return respond(updateAmbulanceMaster(payload));
       case 'saveHandover':
         return respond(saveHandover(payload));
       default:

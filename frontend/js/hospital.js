@@ -32,6 +32,15 @@ APP.Hospital.init = function () {
   document.getElementById('hospitalOverviewCloseBtn').addEventListener('click', function () {
     document.getElementById('hospitalOverviewModal').classList.add('hidden');
   });
+  document.getElementById('hospitalOverviewBody').addEventListener('click', function (ev) {
+    var row = ev.target.closest('[data-triage-id]');
+    if (!row) return;
+    var p = APP.Board.state.patients.find(function (x) { return x.triageId === row.dataset.triageId; });
+    if (p) APP.Hospital.openPatientDetail(p);
+  });
+  document.getElementById('patientDetailCloseBtn').addEventListener('click', function () {
+    document.getElementById('patientDetailModal').classList.add('hidden');
+  });
 
   document.getElementById('addAmbulanceBtn').addEventListener('click', APP.Hospital.openAddAmbulanceModal);
   document.getElementById('ambulanceAddCancelBtn').addEventListener('click', APP.Hospital.closeAddAmbulanceModal);
@@ -39,6 +48,19 @@ APP.Hospital.init = function () {
   document.getElementById('ambulanceSelectAll').addEventListener('change', function (ev) {
     document.querySelectorAll('.ambulance-add-checkbox').forEach(function (cb) { cb.checked = ev.target.checked; });
   });
+
+  document.getElementById('showCreateAmbulanceBtn').addEventListener('click', function () {
+    document.getElementById('createAmbulanceForm').classList.toggle('hidden');
+  });
+  document.getElementById('cancelCreateAmbulanceBtn').addEventListener('click', function () {
+    document.getElementById('createAmbulanceForm').classList.add('hidden');
+  });
+  document.getElementById('submitCreateAmbulanceBtn').addEventListener('click', APP.Hospital.submitCreateAmbulance);
+
+  document.getElementById('editAmbulanceCancelBtn').addEventListener('click', function () {
+    document.getElementById('editAmbulanceModal').classList.add('hidden');
+  });
+  document.getElementById('editAmbulanceSaveBtn').addEventListener('click', APP.Hospital.saveEditAmbulance);
 };
 
 // ─── 加入醫院（可勾選多間，一次送出；也能新增／編輯主檔） ──────────────────────────
@@ -165,7 +187,7 @@ APP.Hospital.applyStatus = function (status) {
   }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
 };
 
-// ─── 加入救護車（可勾選多輛，一次送出） ──────────────────────────
+// ─── 加入救護車（可勾選多輛，一次送出；也能新增／編輯主檔） ──────────────────────────
 APP.Hospital.openAddAmbulanceModal = function () {
   var list = document.getElementById('ambulanceMasterList');
   list.innerHTML = '載入中...';
@@ -174,20 +196,31 @@ APP.Hospital.openAddAmbulanceModal = function () {
   APP.Api.get('getAmbulanceMaster', {}).then(function (res) {
     list.innerHTML = '';
     if (res.status !== 'success' || res.data.length === 0) {
-      list.innerHTML = '<div class="empty-hint">救護車主檔沒有資料，請先在 Google 試算表「救護車主檔」分頁新增。</div>';
+      list.innerHTML = '<div class="empty-hint">救護車主檔沒有資料，請按上方「＋新增救護車」建立第一輛。</div>';
       return;
     }
     res.data.forEach(function (v) {
-      var row = document.createElement('label');
-      row.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid #e2e8f0;padding:8px 4px;';
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #e2e8f0;padding:8px 4px;';
+
+      var label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;';
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.className = 'ambulance-add-checkbox';
       cb.value = v.vehicleCode;
-      var label = document.createElement('span');
-      label.textContent = v.unitName + ' ' + v.vehicleCode + '（' + v.unitType + '）';
-      row.appendChild(cb);
+      var span = document.createElement('span');
+      span.textContent = v.unitName + ' ' + v.vehicleCode + '（' + v.unitType + '）';
+      label.appendChild(cb);
+      label.appendChild(span);
       row.appendChild(label);
+
+      var editBtn = document.createElement('button');
+      editBtn.textContent = '編輯';
+      editBtn.style.cssText = 'padding:4px 8px;background:#e2e8f0;border:none;border-radius:6px;font-size:12px;flex-shrink:0;';
+      editBtn.addEventListener('click', function () { APP.Hospital.openEditAmbulance(v); });
+      row.appendChild(editBtn);
+
       list.appendChild(row);
     });
   });
@@ -195,6 +228,55 @@ APP.Hospital.openAddAmbulanceModal = function () {
 
 APP.Hospital.closeAddAmbulanceModal = function () {
   document.getElementById('ambulanceAddModal').classList.add('hidden');
+  document.getElementById('createAmbulanceForm').classList.add('hidden');
+};
+
+APP.Hospital.submitCreateAmbulance = function () {
+  var vehicleCode = document.getElementById('newAmbulanceVehicleCode').value.trim();
+  if (!vehicleCode) { APP.UI.alert('請輸入車輛代碼。'); return; }
+
+  APP.Api.post('createAmbulanceMasterAndAdd', APP.DragDrop.withSession({
+    vehicleCode: vehicleCode,
+    unitType: document.getElementById('newAmbulanceUnitType').value.trim(),
+    unitName: document.getElementById('newAmbulanceUnitName').value.trim(),
+    plateLast4: document.getElementById('newAmbulancePlateLast4').value.trim(),
+    crew: document.getElementById('newAmbulanceCrew').value.trim(),
+  })).then(function (r) {
+    if (r.status !== 'success') { APP.UI.alert(r.message || '建立失敗'); return; }
+    document.getElementById('newAmbulanceVehicleCode').value = '';
+    document.getElementById('newAmbulanceUnitType').value = '';
+    document.getElementById('newAmbulanceUnitName').value = '';
+    document.getElementById('newAmbulancePlateLast4').value = '';
+    document.getElementById('newAmbulanceCrew').value = '';
+    APP.Hospital.closeAddAmbulanceModal();
+    APP.Board.refresh();
+  }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+};
+
+APP.Hospital.currentEditingVehicleCode = null;
+
+APP.Hospital.openEditAmbulance = function (v) {
+  APP.Hospital.currentEditingVehicleCode = v.vehicleCode;
+  document.getElementById('editAmbulanceVehicleCodeLabel').textContent = '車輛代碼：' + v.vehicleCode + '（代碼本身不可修改）';
+  document.getElementById('editAmbulanceUnitType').value = v.unitType || '';
+  document.getElementById('editAmbulanceUnitName').value = v.unitName || '';
+  document.getElementById('editAmbulancePlateLast4').value = v.plateLast4 || '';
+  document.getElementById('editAmbulanceCrew').value = v.defaultCrew || '';
+  document.getElementById('editAmbulanceModal').classList.remove('hidden');
+};
+
+APP.Hospital.saveEditAmbulance = function () {
+  APP.Api.post('updateAmbulanceMaster', APP.DragDrop.withSession({
+    vehicleCode: APP.Hospital.currentEditingVehicleCode,
+    unitType: document.getElementById('editAmbulanceUnitType').value.trim(),
+    unitName: document.getElementById('editAmbulanceUnitName').value.trim(),
+    plateLast4: document.getElementById('editAmbulancePlateLast4').value.trim(),
+    crew: document.getElementById('editAmbulanceCrew').value.trim(),
+  })).then(function (r) {
+    if (r.status !== 'success') { APP.UI.alert(r.message || '更新失敗'); return; }
+    document.getElementById('editAmbulanceModal').classList.add('hidden');
+    APP.Hospital.openAddAmbulanceModal(); // 重新載入清單，顯示更新後的資料
+  }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
 };
 
 APP.Hospital.submitAddSelectedAmbulances = function () {
@@ -228,11 +310,12 @@ APP.Hospital.openOverview = function () {
         ? '<div class="empty-hint" style="padding:8px 0;">目前無傷患</div>'
         : patients.map(function (p) {
           var nameLine = APP.Board.state.masked ? '' : ('　' + (p.name || '無名氏'));
-          return '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:14px;">' +
+          return '<div data-triage-id="' + p.triageId + '" style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:14px;cursor:pointer;">' +
             '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;background:' +
             (COLOR_DOT[p.color] || '#94a3b8') + ';"></span>' +
             p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' +
             (p.tagNumber ? '　貼紙:' + p.tagNumber : '') + nameLine +
+            ' <span style="color:#94a3b8;">▸點看照片/傷情</span>' +
             '</div>';
         }).join('');
       return '<div style="margin-bottom:14px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
@@ -247,4 +330,51 @@ APP.Hospital.openOverview = function () {
   }
 
   document.getElementById('hospitalOverviewModal').classList.remove('hidden');
+};
+
+// ─── 傷患詳情（照片＋傷情）：從總覽點傷患開啟 ──────────────────────────
+APP.Hospital.openPatientDetail = function (p) {
+  document.getElementById('patientDetailTitle').textContent =
+    p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' + (p.tagNumber ? '　貼紙:' + p.tagNumber : '');
+
+  var photoBlock = document.getElementById('patientDetailPhotoBlock');
+  var body = document.getElementById('patientDetailBody');
+
+  if (APP.Board.state.masked) {
+    photoBlock.innerHTML = '';
+    body.innerHTML = '<div class="empty-hint">姓名、照片、傷情等機敏資料目前處於遮蔽狀態，請先在登入畫面輸入本案件的共用驗證碼。</div>';
+    document.getElementById('patientDetailModal').classList.remove('hidden');
+    return;
+  }
+
+  var historyHtml = (p.colorHistory || []).map(function (h) {
+    var t = h.time ? new Date(h.time).toLocaleString('zh-TW', { hour12: false }) : '';
+    return '<div style="font-size:12px;color:#64748b;">' + t + '　' + (COLOR_LABEL[h.color] || h.color) + '色　' + (h.by || '') + '</div>';
+  }).join('');
+
+  body.innerHTML =
+    '<div><b>姓名：</b>' + (p.name || '無名氏') + '　<b>性別：</b>' + (p.gender || '不明') + '　<b>年齡：</b>' + (p.age || '不明') + '</div>' +
+    '<div><b>傷情/備註：</b>' + (p.note ? p.note.replace(/</g, '&lt;') : '（無）') + '</div>' +
+    '<div><b>分類歷程：</b></div>' + (historyHtml || '<div class="empty-hint" style="padding:2px 0;">無紀錄</div>');
+
+  photoBlock.innerHTML = '<div class="empty-hint">照片載入中...</div>';
+  document.getElementById('patientDetailModal').classList.remove('hidden');
+
+  if (!p.photoFileId) {
+    photoBlock.innerHTML = '<div class="empty-hint">此傷患沒有照片。</div>';
+    return;
+  }
+
+  var session = APP.Auth.getSession();
+  APP.Api.get('getPatientPhoto', {
+    incidentId: session.incidentId, patientId: p.triageId, passcode: session.passcode,
+  }).then(function (res) {
+    if (res.status !== 'success') {
+      photoBlock.innerHTML = '<div class="empty-hint">' + (res.message || '照片讀取失敗') + '</div>';
+      return;
+    }
+    photoBlock.innerHTML = '<img src="' + res.dataUrl + '" style="width:100%;border-radius:8px;display:block;">';
+  }).catch(function () {
+    photoBlock.innerHTML = '<div class="empty-hint">網路錯誤，照片讀取失敗。</div>';
+  });
 };

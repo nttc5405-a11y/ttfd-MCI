@@ -30,26 +30,27 @@ const AUDIT_HEADERS = [
 
 // ────────────────────────────────────────────────────────────────
 // 區塊讀寫共用函式
+//
+// 效能說明（降低操作延遲用）：同一次前端請求（doPost/doGet 呼叫後端一次）
+// 常常要反覆查詢「同一個區塊」——例如一輛救護車上有好幾位傷患，抵院時要
+// 逐一比對每一位。舊版每次查詢都重新呼叫 Sheets API 讀取（找空列一次、
+// 讀資料一次，等於每次查詢都是 2 次 API 呼叫），呼叫次數疊加起來就是
+// 使用者感受到的延遲。這裡改成「本次請求內快取」：同一個區塊只有第一次
+// 查詢時才真的呼叫 Sheets API（且只呼叫 1 次，不再分兩次呼叫），
+// 之後同一次請求裡的查詢都直接讀記憶體；寫入時同步更新快取內容，
+// 保證快取跟試算表隨時一致，不會讀到舊資料。resetBlockCache() 在每次
+// doGet/doPost 一開始就會呼叫，保證絕對不會把「上一次請求」的資料
+// 誤用到這一次請求裡。
 // ────────────────────────────────────────────────────────────────
 
-// 找出指定區塊「錨點欄」從 startRow 起第一個空白列（自動往下延伸搜尋）
-function findNextEmptyRow(sheet, anchorCol, startRow) {
-  startRow = startRow || 2;
-  const chunk = 500;
-  let row = startRow;
-  while (true) {
-    const maxRow = sheet.getMaxRows();
-    if (row > maxRow) return row;
-    const readHeight = Math.min(chunk, maxRow - row + 1);
-    const values = sheet.getRange(row, anchorCol, readHeight, 1).getValues();
-    for (let i = 0; i < values.length; i++) {
-      if (values[i][0] === '' || values[i][0] === null) {
-        return row + i;
-      }
-    }
-    row += readHeight;
-    if (readHeight < chunk) return row;
-  }
+let _blockCacheStore = {};
+
+function resetBlockCache() {
+  _blockCacheStore = {};
+}
+
+function _blockCacheKey(block) {
+  return String(block.anchorCol);
 }
 
 // 新分頁預設只有26欄（到Z），稽核紀錄區用到第36欄（AJ），
@@ -67,18 +68,34 @@ function writeBlockHeader(sheet, block, headers) {
   range.setFontWeight('bold').setBackground('#d9ead3');
 }
 
-// 讀取整個區塊目前已有資料的列（不含表頭，從第2列起）
+// 讀取整個區塊目前已有資料的列（不含表頭，從第2列起）。
+// 一次讀到分頁目前的實際列數為止，在記憶體裡裁掉尾端的空白列——
+// 相較舊版「先找空列、再讀資料」要呼叫 2 次 Sheets API，這裡只呼叫 1 次。
 function readBlockRows(sheet, block) {
-  const lastEmptyRow = findNextEmptyRow(sheet, block.anchorCol, 2);
-  const lastDataRow = lastEmptyRow - 1;
-  if (lastDataRow < 2) return [];
-  return sheet.getRange(2, block.anchorCol, lastDataRow - 1, block.width).getValues();
+  const key = _blockCacheKey(block);
+  if (_blockCacheStore[key]) return _blockCacheStore[key];
+
+  const maxRow = sheet.getMaxRows();
+  const height = maxRow - 1;
+  let rows = [];
+  if (height > 0) {
+    const values = sheet.getRange(2, block.anchorCol, height, block.width).getValues();
+    let lastFilledIndex = -1;
+    for (let i = 0; i < values.length; i++) {
+      if (values[i][0] !== '' && values[i][0] !== null) lastFilledIndex = i;
+    }
+    rows = values.slice(0, lastFilledIndex + 1);
+  }
+  _blockCacheStore[key] = rows;
+  return rows;
 }
 
 // 在區塊尾端新增一列，回傳實際寫入的列號
 function appendBlockRow(sheet, block, rowValues) {
-  const row = findNextEmptyRow(sheet, block.anchorCol, 2);
+  const rows = readBlockRows(sheet, block);
+  const row = rows.length + 2;
   sheet.getRange(row, block.anchorCol, 1, block.width).setValues([rowValues]);
+  rows.push(rowValues.slice());
   return row;
 }
 
@@ -96,13 +113,21 @@ function findBlockRowByKey(sheet, block, keyColOffset, keyValue) {
 
 function updateBlockRow(sheet, block, rowIndex, rowValues) {
   sheet.getRange(rowIndex, block.anchorCol, 1, block.width).setValues([rowValues]);
+  const rows = _blockCacheStore[_blockCacheKey(block)];
+  if (rows) {
+    const idx = rowIndex - 2;
+    if (idx >= 0 && idx < rows.length) rows[idx] = rowValues.slice();
+  }
 }
 
 function appendAuditLog(sheet, operatorName, actionType, targetId, detail, payload) {
-  const row = findNextEmptyRow(sheet, BLOCK.AUDIT.anchorCol, 2);
-  sheet.getRange(row, BLOCK.AUDIT.anchorCol, 1, BLOCK.AUDIT.width).setValues([[
+  const rows = readBlockRows(sheet, BLOCK.AUDIT);
+  const row = rows.length + 2;
+  const rowValues = [
     new Date(), operatorName || '', actionType || '', targetId || '', detail || '', JSON.stringify(payload || {}),
-  ]]);
+  ];
+  sheet.getRange(row, BLOCK.AUDIT.anchorCol, 1, BLOCK.AUDIT.width).setValues([rowValues]);
+  rows.push(rowValues);
 }
 
 // ────────────────────────────────────────────────────────────────
