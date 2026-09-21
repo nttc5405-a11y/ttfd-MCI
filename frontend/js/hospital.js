@@ -9,6 +9,19 @@ APP.Hospital.init = function () {
     document.querySelectorAll('.hospital-add-checkbox').forEach(function (cb) { cb.checked = ev.target.checked; });
   });
 
+  document.getElementById('showCreateHospitalBtn').addEventListener('click', function () {
+    document.getElementById('createHospitalForm').classList.toggle('hidden');
+  });
+  document.getElementById('cancelCreateHospitalBtn').addEventListener('click', function () {
+    document.getElementById('createHospitalForm').classList.add('hidden');
+  });
+  document.getElementById('submitCreateHospitalBtn').addEventListener('click', APP.Hospital.submitCreateHospital);
+
+  document.getElementById('editHospitalCancelBtn').addEventListener('click', function () {
+    document.getElementById('editHospitalModal').classList.add('hidden');
+  });
+  document.getElementById('editHospitalSaveBtn').addEventListener('click', APP.Hospital.saveEditHospital);
+
   document.getElementById('hospitalStatusCancelBtn').addEventListener('click', APP.Hospital.closeStatusPicker);
   ['AVAILABLE', 'LIMITED', 'FULL', 'UNKNOWN'].forEach(function (s) {
     var btn = document.getElementById('hospStatusBtn_' + s);
@@ -23,7 +36,7 @@ APP.Hospital.init = function () {
   });
 };
 
-// ─── 加入醫院（可勾選多間，一次送出） ──────────────────────────
+// ─── 加入醫院（可勾選多間，一次送出；也能新增／編輯主檔） ──────────────────────────
 APP.Hospital.openAddModal = function () {
   var list = document.getElementById('hospitalMasterList');
   list.innerHTML = '載入中...';
@@ -32,20 +45,31 @@ APP.Hospital.openAddModal = function () {
   APP.Api.get('getHospitalMaster', {}).then(function (res) {
     list.innerHTML = '';
     if (res.status !== 'success' || res.data.length === 0) {
-      list.innerHTML = '<div class="empty-hint">醫院主檔沒有資料，請先在 Google 試算表「醫院主檔」分頁新增。</div>';
+      list.innerHTML = '<div class="empty-hint">醫院主檔沒有資料，請按上方「＋新增醫院」建立第一筆。</div>';
       return;
     }
     res.data.forEach(function (h) {
-      var row = document.createElement('label');
-      row.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid #e2e8f0;padding:8px 4px;';
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #e2e8f0;padding:8px 4px;';
+
+      var label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;';
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.className = 'hospital-add-checkbox';
       cb.value = h.hospitalId;
-      var label = document.createElement('span');
-      label.textContent = h.name + '（' + h.hospitalId + '）';
-      row.appendChild(cb);
+      var span = document.createElement('span');
+      span.textContent = h.name + '（' + h.hospitalId + '）';
+      label.appendChild(cb);
+      label.appendChild(span);
       row.appendChild(label);
+
+      var editBtn = document.createElement('button');
+      editBtn.textContent = '編輯';
+      editBtn.style.cssText = 'padding:4px 8px;background:#e2e8f0;border:none;border-radius:6px;font-size:12px;flex-shrink:0;';
+      editBtn.addEventListener('click', function () { APP.Hospital.openEditHospital(h); });
+      row.appendChild(editBtn);
+
       list.appendChild(row);
     });
   });
@@ -53,6 +77,51 @@ APP.Hospital.openAddModal = function () {
 
 APP.Hospital.closeAddModal = function () {
   document.getElementById('hospitalAddModal').classList.add('hidden');
+  document.getElementById('createHospitalForm').classList.add('hidden');
+};
+
+APP.Hospital.submitCreateHospital = function () {
+  var name = document.getElementById('newHospitalName').value.trim();
+  if (!name) { APP.UI.alert('請輸入醫院名稱。'); return; }
+  var address = document.getElementById('newHospitalAddress').value.trim();
+  var phone = document.getElementById('newHospitalPhone').value.trim();
+
+  APP.Api.post('createHospitalMasterAndAdd', APP.DragDrop.withSession({
+    name: name, address: address, phone: phone,
+  })).then(function (r) {
+    if (r.status !== 'success') { APP.UI.alert(r.message || '建立失敗'); return; }
+    document.getElementById('newHospitalName').value = '';
+    document.getElementById('newHospitalAddress').value = '';
+    document.getElementById('newHospitalPhone').value = '';
+    APP.Hospital.closeAddModal();
+    APP.Board.refresh();
+  }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+};
+
+APP.Hospital.currentEditingHospitalId = null;
+
+APP.Hospital.openEditHospital = function (h) {
+  APP.Hospital.currentEditingHospitalId = h.hospitalId;
+  document.getElementById('editHospitalName').value = h.name || '';
+  document.getElementById('editHospitalAddress').value = h.address || '';
+  document.getElementById('editHospitalPhone').value = h.phone || '';
+  document.getElementById('editHospitalModal').classList.remove('hidden');
+};
+
+APP.Hospital.saveEditHospital = function () {
+  var name = document.getElementById('editHospitalName').value.trim();
+  if (!name) { APP.UI.alert('請輸入醫院名稱。'); return; }
+
+  APP.Api.post('updateHospitalMaster', APP.DragDrop.withSession({
+    hospitalId: APP.Hospital.currentEditingHospitalId,
+    name: name,
+    address: document.getElementById('editHospitalAddress').value.trim(),
+    phone: document.getElementById('editHospitalPhone').value.trim(),
+  })).then(function (r) {
+    if (r.status !== 'success') { APP.UI.alert(r.message || '更新失敗'); return; }
+    document.getElementById('editHospitalModal').classList.add('hidden');
+    APP.Hospital.openAddModal(); // 重新載入清單，顯示更新後的資料
+  }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
 };
 
 APP.Hospital.submitAddSelectedHospitals = function () {

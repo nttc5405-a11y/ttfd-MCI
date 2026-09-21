@@ -153,10 +153,22 @@
   </div>
 </div>
 
-<!-- ══════════════════ 彈窗：加入醫院（可勾選多間） ══════════════════ -->
+<!-- ══════════════════ 彈窗：加入醫院（可勾選多間／新增／編輯） ══════════════════ -->
 <div id="hospitalAddModal" class="modal-overlay hidden">
   <div class="modal-box">
     <div class="font-bold text-lg mb-2">從醫院主檔加入本案件</div>
+
+    <button id="showCreateHospitalBtn" class="text-sm text-indigo-600 mb-2" style="text-decoration:underline; background:none; border:none; padding:0;">＋ 新增醫院</button>
+    <div id="createHospitalForm" class="hidden space-y-2 mb-3 p-3" style="background:#f8fafc; border-radius:8px;">
+      <input type="text" id="newHospitalName" placeholder="醫院名稱">
+      <input type="text" id="newHospitalAddress" placeholder="地址（選填）">
+      <input type="text" id="newHospitalPhone" placeholder="電話（選填）">
+      <div class="flex gap-2">
+        <button id="cancelCreateHospitalBtn" class="flex-1 py-2 rounded bg-slate-200 text-sm">取消</button>
+        <button id="submitCreateHospitalBtn" class="flex-1 py-2 rounded bg-indigo-600 text-white text-sm font-bold">建立並加入本案件</button>
+      </div>
+    </div>
+
     <label class="flex items-center gap-2 mb-2 text-sm text-slate-500">
       <input type="checkbox" id="hospitalSelectAll"> 全選
     </label>
@@ -164,6 +176,22 @@
     <div class="flex gap-2">
       <button id="hospitalAddCancelBtn" class="flex-1 py-2 rounded bg-slate-200">關閉</button>
       <button id="hospitalAddSubmitBtn" class="flex-1 py-2 rounded bg-indigo-600 text-white font-bold">加入已選取</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ 彈窗：編輯醫院資料 ══════════════════ -->
+<div id="editHospitalModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="font-bold text-lg mb-2">編輯醫院資料</div>
+    <div class="space-y-2">
+      <input type="text" id="editHospitalName" placeholder="醫院名稱">
+      <input type="text" id="editHospitalAddress" placeholder="地址（選填）">
+      <input type="text" id="editHospitalPhone" placeholder="電話（選填）">
+    </div>
+    <div class="flex gap-2 mt-3">
+      <button id="editHospitalCancelBtn" class="flex-1 py-2 rounded bg-slate-200">取消</button>
+      <button id="editHospitalSaveBtn" class="flex-1 py-2 rounded bg-indigo-600 text-white font-bold">儲存</button>
     </div>
   </div>
 </div>

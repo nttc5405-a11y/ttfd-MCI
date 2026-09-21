@@ -113,3 +113,49 @@ function addHospitalsToIncident(payload) {
 
   return { status: 'success', added: added, skipped: skipped };
 }
+
+// 前端直接新增一間醫院到主檔，並立刻加進目前這個案件（現場常常需要臨時登記新醫院/收治點）
+function createHospitalMasterAndAdd(payload) {
+  const name = (payload.name || '').toString().trim();
+  if (!name) return { status: 'error', code: 'INVALID_NAME', message: '請輸入醫院名稱。' };
+
+  const doc = getDoc();
+  const masterSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.HOSPITAL) || ensureHospitalMasterSheet(doc);
+  const data = masterSheet.getDataRange().getValues();
+
+  let maxNum = 0;
+  for (let i = 1; i < data.length; i++) {
+    const m = String(data[i][0] || '').match(/^H(\d+)$/);
+    if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+  }
+  const hospitalId = 'H' + ('000' + (maxNum + 1)).slice(-3);
+
+  masterSheet.appendRow([hospitalId, name, payload.address || '', payload.phone || '', '前端新增', '啟用']);
+
+  return addHospitalToIncident({
+    incidentId: payload.incidentId, hospitalId: hospitalId, operatorName: payload.operatorName,
+  });
+}
+
+// 修正醫院主檔資料（名稱/地址/電話）。注意：已經加入某案件的醫院卡片顯示名稱是
+// 加入當下複製的一份快照，修改主檔不會回頭更新已存在的案件紀錄。
+function updateHospitalMaster(payload) {
+  const hospitalId = payload.hospitalId;
+  if (!hospitalId) return { status: 'error', code: 'INVALID_ID', message: '缺少醫院ID。' };
+
+  const doc = getDoc();
+  const masterSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.HOSPITAL);
+  if (!masterSheet) return { status: 'error', code: 'NO_MASTER', message: '找不到醫院主檔。' };
+
+  const data = masterSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === hospitalId) {
+      const row = i + 1;
+      if (payload.name !== undefined) masterSheet.getRange(row, 2).setValue(payload.name);
+      if (payload.address !== undefined) masterSheet.getRange(row, 3).setValue(payload.address);
+      if (payload.phone !== undefined) masterSheet.getRange(row, 4).setValue(payload.phone);
+      return { status: 'success' };
+    }
+  }
+  return { status: 'error', code: 'NOT_FOUND', message: '醫院主檔查無此ID。' };
+}
