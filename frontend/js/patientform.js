@@ -6,6 +6,21 @@ APP.PatientForm.selectedGender = null;
 
 var GENDER_LABEL = { MALE: '男', FEMALE: '女', UNKNOWN: '不明' };
 
+// START檢傷流程：key -> 中文標籤／這一步是否為終點（決定顏色）／終點對應顏色／非終點時要跳到第幾步
+var START_LABEL = {
+  walk_yes: '可行走', walk_no: '不可行走',
+  resp_none: '無呼吸', resp_fast: '呼吸≥30/min', resp_normal: '呼吸<30/min',
+  circ_bad: 'CRT≥2s或橈動脈(-)', circ_ok: 'CRT<2s且橈動脈(+)',
+  mental_ok: '可聽從指令', mental_bad: '不可聽從指令',
+};
+var START_TERMINAL_COLOR = {
+  walk_yes: 'GREEN', resp_none: 'BLACK', resp_fast: 'RED',
+  circ_bad: 'RED', mental_ok: 'YELLOW', mental_bad: 'RED',
+};
+var START_NEXT_STEP = { walk_no: 2, resp_normal: 3, circ_ok: 4 };
+
+APP.PatientForm.startPath = [];
+
 APP.PatientForm.init = function () {
   document.getElementById('addPatientBtn').addEventListener('click', APP.PatientForm.openCreate);
   document.getElementById('patientFormCancelBtn').addEventListener('click', APP.PatientForm.close);
@@ -18,6 +33,10 @@ APP.PatientForm.init = function () {
     var el = document.getElementById('genderBtn_' + g);
     if (el) el.addEventListener('click', function () { APP.PatientForm.selectGender(g); });
   });
+  document.querySelectorAll('.start-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { APP.PatientForm.handleStartAnswer(btn.dataset.start); });
+  });
+  document.getElementById('startResetBtn').addEventListener('click', APP.PatientForm.resetStartAssessment);
 };
 
 APP.PatientForm.openCreate = function () {
@@ -34,6 +53,7 @@ APP.PatientForm.openCreate = function () {
   document.getElementById('cameraBlock').classList.remove('hidden');
   APP.PatientForm.highlightColor(null);
   APP.PatientForm.highlightGender(null);
+  APP.PatientForm.resetStartAssessment();
   document.getElementById('patientFormModal').classList.remove('hidden');
   APP.Camera.reset();
 };
@@ -73,6 +93,44 @@ APP.PatientForm.highlightGender = function (g) {
   });
 };
 
+// ─── START檢傷流程精靈：點選就自動往下一步或直接判定顏色 ──────────────────
+APP.PatientForm.handleStartAnswer = function (key) {
+  APP.PatientForm.startPath.push(key);
+  if (START_TERMINAL_COLOR[key]) {
+    APP.PatientForm.finishStartAssessment(START_TERMINAL_COLOR[key]);
+  } else {
+    APP.PatientForm.showStartStep(START_NEXT_STEP[key]);
+  }
+};
+
+APP.PatientForm.showStartStep = function (n) {
+  for (var i = 1; i <= 4; i++) {
+    document.getElementById('startStep' + i).classList.toggle('hidden', i !== n);
+  }
+  document.getElementById('startResult').classList.add('hidden');
+};
+
+APP.PatientForm.finishStartAssessment = function (color) {
+  for (var i = 1; i <= 4; i++) {
+    document.getElementById('startStep' + i).classList.add('hidden');
+  }
+  var pathText = APP.PatientForm.startPath.map(function (k) { return START_LABEL[k]; }).join('→');
+  document.getElementById('startResultText').textContent = pathText + '（建議：' + (COLOR_LABEL[color] || color) + '色）';
+  document.getElementById('startResult').classList.remove('hidden');
+  APP.PatientForm.selectColor(color); // 自動帶入建議顏色，仍可手動點別的顏色覆蓋
+};
+
+APP.PatientForm.resetStartAssessment = function () {
+  APP.PatientForm.startPath = [];
+  document.getElementById('startResult').classList.add('hidden');
+  APP.PatientForm.showStartStep(1);
+};
+
+APP.PatientForm.getStartSummaryText = function () {
+  if (APP.PatientForm.startPath.length === 0) return '';
+  return 'START評估：' + APP.PatientForm.startPath.map(function (k) { return START_LABEL[k]; }).join('→');
+};
+
 APP.PatientForm.close = function () {
   document.getElementById('patientFormModal').classList.add('hidden');
   if (APP.PatientForm.mode === 'create') APP.Camera.stop();
@@ -98,13 +156,17 @@ APP.PatientForm.submit = function () {
     return;
   }
 
+  var startSummary = APP.PatientForm.getStartSummaryText();
+  var freeNote = document.getElementById('patientNoteInput').value.trim();
+  var combinedNote = startSummary && freeNote ? (startSummary + '；' + freeNote) : (startSummary || freeNote);
+
   var payload = APP.DragDrop.withSession({
     triageColor: APP.PatientForm.selectedColor,
     tagNumber: document.getElementById('tagNumberInput').value.trim(),
     name: document.getElementById('patientNameInput').value.trim(),
     gender: APP.PatientForm.selectedGender ? GENDER_LABEL[APP.PatientForm.selectedGender] : '',
     age: document.getElementById('patientAgeInput').value.trim(),
-    note: document.getElementById('patientNoteInput').value.trim(),
+    note: combinedNote,
   });
   var photo = APP.Camera.getMosaicedPhotoBase64();
   if (photo) payload.photoBase64 = photo;

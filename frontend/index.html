@@ -149,7 +149,50 @@
         </div>
       </div>
       <input type="text" id="patientAgeInput" placeholder="年齡（選填）">
-      <textarea id="patientNoteInput" placeholder="生命徵象/備註（選填）" rows="2"></textarea>
+
+      <div id="startAssessmentBlock">
+        <div class="text-xs text-slate-500 mb-1">生命徵象評估（依START檢傷流程點選，會自動建議分類顏色，仍可手動改選上方顏色覆蓋）</div>
+
+        <div id="startStep1">
+          <div class="text-sm font-bold mb-1">① 可否行走？</div>
+          <div class="flex gap-2 flex-wrap">
+            <button type="button" class="start-btn" data-start="walk_yes" style="background:#16a34a;">可行走</button>
+            <button type="button" class="start-btn" data-start="walk_no" style="background:#64748b;">不可行走</button>
+          </div>
+        </div>
+
+        <div id="startStep2" class="hidden">
+          <div class="text-sm font-bold mb-1">② 呼吸評估</div>
+          <div class="flex gap-2 flex-wrap">
+            <button type="button" class="start-btn" data-start="resp_none" style="background:#1e293b;">無呼吸</button>
+            <button type="button" class="start-btn" data-start="resp_fast" style="background:#dc2626;">呼吸≥30/min</button>
+            <button type="button" class="start-btn" data-start="resp_normal" style="background:#64748b;">呼吸&lt;30/min</button>
+          </div>
+        </div>
+
+        <div id="startStep3" class="hidden">
+          <div class="text-sm font-bold mb-1">③ 循環狀況</div>
+          <div class="flex gap-2 flex-wrap">
+            <button type="button" class="start-btn" data-start="circ_bad" style="background:#dc2626;">CRT≥2s或橈動脈(-)</button>
+            <button type="button" class="start-btn" data-start="circ_ok" style="background:#64748b;">CRT&lt;2s且橈動脈(+)</button>
+          </div>
+        </div>
+
+        <div id="startStep4" class="hidden">
+          <div class="text-sm font-bold mb-1">④ 意識狀態</div>
+          <div class="flex gap-2 flex-wrap">
+            <button type="button" class="start-btn" data-start="mental_ok" style="background:#eab308;">可聽從指令</button>
+            <button type="button" class="start-btn" data-start="mental_bad" style="background:#dc2626;">不可聽從指令</button>
+          </div>
+        </div>
+
+        <div id="startResult" class="hidden text-sm" style="padding:6px 0;">
+          評估路徑：<span id="startResultText" class="font-bold"></span>
+          <button type="button" id="startResetBtn" style="text-decoration:underline;background:none;border:none;color:#4f46e5;font-size:13px;margin-left:4px;">重新評估</button>
+        </div>
+      </div>
+
+      <textarea id="patientNoteInput" placeholder="其他備註（選填）" rows="2"></textarea>
     </div>
 
     <div class="flex gap-2">

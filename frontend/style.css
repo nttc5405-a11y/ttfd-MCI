@@ -75,6 +75,10 @@ header {
   background: #fff; color: #334155; border: 2px solid #cbd5e1;
 }
 .gender-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+.start-btn {
+  padding: 8px 12px; border-radius: 8px; font-weight: 700; color: #fff; border: none; font-size: 13px;
+}
 #colorBtn_RED { background: #dc2626; }
 #colorBtn_YELLOW { background: #eab308; }
 #colorBtn_GREEN { background: #16a34a; }
