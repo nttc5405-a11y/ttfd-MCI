@@ -126,8 +126,23 @@ function saveHandover(payload) {
     }
   });
 
+  // 產生交接單即視同完成交接：這些傷患一併從救護車的車上清單移掉，
+  // 不用使用者再一個一個點「卸下病患」。跟 dischargePatientFromAmbulance 一樣，
+  // 只清空車上清單，不動傷患本身的送達狀態／醫院ID。
+  if (payload.ambulanceId) {
+    const ambFound = findBlockRowByKey(sheet, BLOCK.AMBULANCE, 0, payload.ambulanceId);
+    if (ambFound) {
+      const ambulance = ambulanceRowToObject(ambFound.rowValues);
+      const patientIdSet = {};
+      patientIds.forEach(function (pid) { patientIdSet[pid] = true; });
+      ambulance.patientIds = ambulance.patientIds.filter(function (pid) { return !patientIdSet[pid]; });
+      ambulance.updatedAt = new Date();
+      updateBlockRow(sheet, BLOCK.AMBULANCE, ambFound.rowIndex, ambulanceObjectToRow(ambulance));
+    }
+  }
+
   appendAuditLog(sheet, payload.operatorName || '', 'SAVE_HANDOVER', payload.ambulanceId || '',
-    '交接單已存檔（' + patientIds.length + ' 位傷患，護理人員：' + (payload.nurseName || '未填') + '）',
+    '交接單已存檔並完成交接（' + patientIds.length + ' 位傷患，護理人員：' + (payload.nurseName || '未填') + '）',
     { fileUrl: file.getUrl() });
 
   return { status: 'success', fileId: file.getId(), fileUrl: file.getUrl() };

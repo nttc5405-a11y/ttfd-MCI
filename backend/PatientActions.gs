@@ -221,3 +221,29 @@ function dischargePatientFromAmbulance(payload) {
 
   return { status: 'success', data: patient };
 }
+
+// 批次卸下（沒有另外產生交接單、但想一次卸下車上多位傷患時用）。
+// 直接重複呼叫上面的單筆版本，逐一驗證與寫入，不假設整批一定都能成功
+// （例如某位傷患剛好被別的裝置移除了），失敗的會列在 skipped 裡而不是整批擋下。
+function dischargePatientsFromAmbulance(payload) {
+  const patientIds = payload.patientIds;
+  if (!Array.isArray(patientIds) || patientIds.length === 0) {
+    return { status: 'error', code: 'NO_ITEMS', message: '沒有指定要卸下的傷患。' };
+  }
+
+  const discharged = [];
+  const skipped = [];
+  patientIds.forEach(function (patientId) {
+    const singlePayload = {
+      incidentId: payload.incidentId, operatorName: payload.operatorName, patientId: patientId,
+    };
+    const res = dischargePatientFromAmbulance(singlePayload);
+    if (res.status === 'success') {
+      discharged.push(res.data);
+    } else {
+      skipped.push({ patientId: patientId, reason: res.message || res.code });
+    }
+  });
+
+  return { status: 'success', discharged: discharged, skipped: skipped };
+}

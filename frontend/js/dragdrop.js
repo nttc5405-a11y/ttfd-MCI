@@ -179,21 +179,29 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
   var sendBtn = document.getElementById('sendToHospitalBtn');
   var standbyBtn = document.getElementById('returnStandbyBtn');
   var handoverBtn = document.getElementById('openHandoverBtn');
+  var batchDischargeBtn = document.getElementById('batchDischargeBtn');
 
   sendBtn.classList.toggle('hidden', ambulance.status === 'AT_HOSPITAL');
   standbyBtn.classList.toggle('hidden', ambulance.status === 'STANDBY');
 
   if (ambulance.status === 'AT_HOSPITAL') {
-    hint.textContent = '已抵達 ' + ambulance.hospitalId + '，傷患已自動標記送達。完成交接後按「卸下病患」，' +
-      '車上清空後即可「返回待命」，之後才能再指派新的傷患出勤。';
+    hint.textContent = '已抵達 ' + ambulance.hospitalId + '，傷患已自動標記送達。' +
+      '按「產生交接單」會在存檔的同時自動幫全車傷患完成卸下，不用再一個一個點；' +
+      '如果不需要交接單，也可以按「全部卸下病患」直接批次卸下。車上清空後即可「返回待命」。';
     handoverBtn.classList.remove('hidden');
     handoverBtn.onclick = function () {
       APP.DragDrop.closeAmbulanceDetail();
       APP.DragDrop.confirmColorsThenHandover(ambulance, patients);
     };
+    batchDischargeBtn.classList.toggle('hidden', patients.length === 0);
+    batchDischargeBtn.onclick = function () {
+      APP.DragDrop.closeAmbulanceDetail();
+      APP.DragDrop.confirmColorsThenBatchDischarge(patients);
+    };
   } else {
     hint.textContent = '要送醫院請按下方「送達醫院」；要回待命請按「返回待命」（車上需先清空傷患）。';
     handoverBtn.classList.add('hidden');
+    batchDischargeBtn.classList.add('hidden');
   }
 
   modal.classList.remove('hidden');
@@ -203,26 +211,48 @@ APP.DragDrop.closeAmbulanceDetail = function () {
   document.getElementById('ambulanceDetailModal').classList.add('hidden');
 };
 
-// 交接前逐一確認/更新每位傷患的檢傷顏色（傷情在送醫過程中可能改變），
-// 全部確認完才真正打開交接單視窗，確保交接單上的顏色是最新的，
-// 而不是傷患剛上車那一刻的舊顏色。用回呼一次處理一位，避免同時開好幾個
-// 選色視窗搞混。
-APP.DragDrop.confirmColorsThenHandover = function (ambulance, patients) {
+// 逐一確認/更新每位傷患的檢傷顏色（傷情在送醫過程中可能改變），
+// 全部確認完才呼叫 onAllConfirmed(confirmedPatients)——confirmedPatients 是
+// 每位傷患「剛剛確認送出」的最新物件（不是舊的看板快照），交接單、批次卸下
+// 都靠這個確保用的是最新顏色。用回呼一次處理一位，避免同時開好幾個選色視窗搞混。
+// titlePrefix 用來組成每個視窗的標題，例如「交接前確認傷情」「卸下前確認傷情」。
+APP.DragDrop.confirmColorsSequentially = function (patients, titlePrefix, onAllConfirmed) {
   if (patients.length === 0) {
-    APP.Handover.open(ambulance, patients);
+    onAllConfirmed([]);
     return;
   }
   var confirmed = [];
   function next(index) {
     if (index >= patients.length) {
-      APP.Handover.open(ambulance, confirmed);
+      onAllConfirmed(confirmed);
       return;
     }
     var p = patients[index];
     APP.PatientForm.openRetriage(p, function (updatedPatient) {
       confirmed.push(updatedPatient || p);
       next(index + 1);
-    }, '交接前確認傷情（' + (index + 1) + '/' + patients.length + '）：' + p.triageId);
+    }, titlePrefix + '（' + (index + 1) + '/' + patients.length + '）：' + p.triageId);
   }
   next(0);
+};
+
+APP.DragDrop.confirmColorsThenHandover = function (ambulance, patients) {
+  APP.DragDrop.confirmColorsSequentially(patients, '交接前確認傷情', function (confirmed) {
+    APP.Handover.open(ambulance, confirmed);
+  });
+};
+
+// 沒有另外產生交接單、但想一次卸下車上所有傷患時用（不用一個一個點）。
+APP.DragDrop.confirmColorsThenBatchDischarge = function (patients) {
+  APP.DragDrop.confirmColorsSequentially(patients, '卸下前確認傷情', function (confirmed) {
+    APP.Api.post('dischargePatientsFromAmbulance', APP.DragDrop.withSession({
+      patientIds: confirmed.map(function (p) { return p.triageId; }),
+    })).then(function (res) {
+      if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
+      APP.Board.refresh();
+      if (res.skipped && res.skipped.length > 0) {
+        APP.UI.alert('已卸下 ' + res.discharged.length + ' 位；' + res.skipped.length + ' 位失敗，請個別確認。');
+      }
+    }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+  });
 };

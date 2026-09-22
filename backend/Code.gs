@@ -132,6 +132,8 @@ function doPost(e) {
         return respond(removePatientFromAmbulance(payload));
       case 'dischargePatientFromAmbulance':
         return respond(dischargePatientFromAmbulance(payload));
+      case 'dischargePatientsFromAmbulance':
+        return respond(dischargePatientsFromAmbulance(payload));
       case 'moveAmbulanceToHospital':
         return respond(moveAmbulanceToHospital(payload));
       case 'moveAmbulanceToStandby':
