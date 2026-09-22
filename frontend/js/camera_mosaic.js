@@ -59,7 +59,8 @@ APP.Camera.capture = function () {
   APP.Camera.hasPhoto = true;
   APP.Camera.mosaicApplied = false;
   APP.Camera.originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  document.getElementById('cameraHint').textContent = '請用手指在臉部拖曳一個方框，再按「套用馬賽克」。';
+  document.getElementById('cameraHint').textContent =
+    '如需保護隱私，可用手指在臉部拖曳方框後按「套用馬賽克」；這是選用步驟，不套用也能直接送出。';
 };
 
 APP.Camera.bindSelection = function () {
@@ -153,8 +154,10 @@ APP.Camera.applyMosaic = function () {
   document.getElementById('cameraHint').textContent = '已套用馬賽克。若還有沒糊到的範圍，可以再拖一次方框加強。';
 };
 
-APP.Camera.getMosaicedPhotoBase64 = function () {
-  if (!APP.Camera.hasPhoto || !APP.Camera.mosaicApplied) return null;
+// 馬賽克是選用的隱私保護步驟，不是必要條件——只要有拍照就能取得照片，
+// 套不套馬賽克由操作人員自行判斷（例如傷患臉部已經包紮看不到，就不需要）。
+APP.Camera.getPhotoBase64 = function () {
+  if (!APP.Camera.hasPhoto) return null;
   return document.getElementById('photoCanvas').toDataURL('image/jpeg', 0.7);
 };
 

@@ -51,7 +51,8 @@ function getOrCreateHandoverFolder(incidentId) {
     function () { return getOrCreateIncidentRootFolder(incidentId); }, '交接單');
 }
 
-// 存馬賽克處理後的傷患照片（前端保證原始未馬賽克影像不會送到這裡）
+// 存傷患照片。馬賽克是前端的選用步驟（操作人員自行判斷要不要套用，
+// 例如臉部已包紮看不到就不需要），這裡單純存前端送來的畫面，不強制要求套過馬賽克。
 function savePhotoToDrive(incidentId, triageId, photoBase64) {
   try {
     const folder = getOrCreatePhotoFolder(incidentId);

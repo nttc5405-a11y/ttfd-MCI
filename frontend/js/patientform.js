@@ -163,11 +163,6 @@ APP.PatientForm.submit = function () {
     return;
   }
 
-  if (APP.Camera.hasPhoto && !APP.Camera.mosaicApplied) {
-    APP.UI.alert('已拍照但尚未套用馬賽克，請先拖框蓋住臉部並按「套用馬賽克」，或按「重拍」放棄這張照片。');
-    return;
-  }
-
   var startSummary = APP.PatientForm.getStartSummaryText();
   var freeNote = document.getElementById('patientNoteInput').value.trim();
   var combinedNote = startSummary && freeNote ? (startSummary + '；' + freeNote) : (startSummary || freeNote);
@@ -180,7 +175,7 @@ APP.PatientForm.submit = function () {
     age: document.getElementById('patientAgeInput').value.trim(),
     note: combinedNote,
   });
-  var photo = APP.Camera.getMosaicedPhotoBase64();
+  var photo = APP.Camera.getPhotoBase64();
   if (photo) payload.photoBase64 = photo;
 
   APP.Api.post('createPatient', payload).then(function (res) {
