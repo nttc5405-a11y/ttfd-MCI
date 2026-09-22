@@ -13,23 +13,43 @@ function initializeSpreadsheet() {
   const ui = SpreadsheetApp.getUi();
   ui.alert(
     '✅ 初始化完成',
-    '已建立/確認「救護車主檔」「醫院主檔」「案件清單」「系統設定」四個分頁。\n\n' +
+    '已建立/確認「救護車主檔」「醫院主檔」「案件清單」「系統設定」四個分頁（重複執行也安全，' +
+    '只會補上缺少的設定列，不會動到您已經填的值）。\n\n' +
     '請到「救護車主檔」「醫院主檔」填入實際的救護車與醫院資料（範例列可以刪除）。\n' +
-    '要啟用管理員密碼保護，請到「系統設定」分頁「管理員密碼」那一列填入密碼即可，不用改程式碼、不用重新部署。',
+    '要啟用管理員密碼保護，請到「系統設定」分頁「管理員密碼」那一列填入密碼；' +
+    '下面四項「需要管理員密碼-○○」可以各自獨立設「啟用」或「停用」，決定哪些動作要驗密碼、哪些不用。' +
+    '改完不用重新部署，馬上生效。',
     ui.ButtonSet.OK
   );
 }
 
-// 系統設定分頁：目前只有「管理員密碼」一項，未來要加其他系統層級設定也可以放這裡，
-// 格式是「設定項目｜值」兩欄，用項目名稱查值，不依賴固定列號。
+// 系統設定分頁，格式是「設定項目｜值｜說明」三欄，用項目名稱查值，不依賴固定列號。
+// 除了「管理員密碼」本身，另外四項「需要管理員密碼-○○」可以個別決定該動作
+// 要不要驗密碼——即使已經填了管理員密碼，個別設成「停用」的動作一樣不用密碼。
+// 重複執行安全：只會補上缺少的設定列，不會覆蓋使用者已經填的值。
 function ensureSystemSettingsSheet(doc) {
   let sheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.SYSTEM_SETTINGS);
-  if (sheet) return sheet;
-  sheet = doc.insertSheet(CONFIG.MASTER_SHEETS.SYSTEM_SETTINGS);
-  const headers = ['設定項目', '值', '說明'];
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold').setBackground('#d9ead3');
-  sheet.setFrozenRows(1);
-  sheet.appendRow(['管理員密碼', '', '留空＝不需要密碼；填值後，建立案件、開關車牌驗證、編輯救護車/醫院主檔都需要輸入這組密碼']);
+  if (!sheet) {
+    sheet = doc.insertSheet(CONFIG.MASTER_SHEETS.SYSTEM_SETTINGS);
+    const headers = ['設定項目', '值', '說明'];
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold').setBackground('#d9ead3');
+    sheet.setFrozenRows(1);
+  }
+
+  const defaultRows = [
+    ['管理員密碼', '', '留空＝完全不需要密碼；填值後，下面設為「啟用」的項目才會要求輸入這組密碼'],
+    ['需要管理員密碼-建立案件', '啟用', '設為「停用」則建立案件不需要密碼（即使已填管理員密碼）'],
+    ['需要管理員密碼-車牌驗證開關', '啟用', '設為「停用」則開關車牌驗證不需要密碼'],
+    ['需要管理員密碼-編輯救護車主檔', '啟用', '設為「停用」則新增/編輯救護車主檔不需要密碼'],
+    ['需要管理員密碼-編輯醫院主檔', '啟用', '設為「停用」則新增/編輯醫院主檔不需要密碼'],
+  ];
+  const existingRows = sheet.getDataRange().getValues();
+  const existingKeys = {};
+  for (let i = 1; i < existingRows.length; i++) existingKeys[String(existingRows[i][0])] = true;
+  defaultRows.forEach(function (row) {
+    if (!existingKeys[row[0]]) sheet.appendRow(row);
+  });
+
   return sheet;
 }
 
@@ -110,7 +130,7 @@ function updatePlateCheckSetting(payload) {
       if (storedCode !== String(payload.passcode || '')) {
         return { status: 'error', code: 'INVALID_PASSCODE', message: '驗證碼錯誤，無法修改設定。' };
       }
-      if (!isAdminPasswordValid(payload.adminPassword)) {
+      if (!isAdminPasswordValid(payload.adminPassword, '車牌驗證開關')) {
         return { status: 'error', code: 'ADMIN_PASSWORD_REQUIRED', message: '管理員密碼錯誤，無法修改設定。' };
       }
       const enabled = !!payload.enabled;
@@ -157,7 +177,7 @@ function verifyIncidentLogin(payload) {
 
 // 建立新案件：新增一個分頁並寫入四個區塊的表頭
 function createIncident(payload) {
-  if (!isAdminPasswordValid(payload.adminPassword)) {
+  if (!isAdminPasswordValid(payload.adminPassword, '建立案件')) {
     return { status: 'error', code: 'ADMIN_PASSWORD_REQUIRED', message: '管理員密碼錯誤，無法建立案件。' };
   }
   const rawName = (payload.incidentName || '').toString().trim();

@@ -246,7 +246,7 @@ function addAmbulancesToIncident(payload) {
 //
 // 這份主檔全縣共用、影響所有案件，所以跟建立案件一樣需要管理員密碼（若系統有啟用）。
 function createAmbulanceMasterAndAdd(payload) {
-  if (!isAdminPasswordValid(payload.adminPassword)) {
+  if (!isAdminPasswordValid(payload.adminPassword, '編輯救護車主檔')) {
     return { status: 'error', code: 'ADMIN_PASSWORD_REQUIRED', message: '管理員密碼錯誤，無法新增救護車主檔。' };
   }
   const rawCode = (payload.vehicleCode || '').toString().trim();
@@ -296,7 +296,7 @@ function createAmbulanceMasterAndAdd(payload) {
 // 救護車卡片顯示名稱是加入當下複製的一份快照，修改主檔不會回頭更新已存在的案件紀錄。
 // 一樣是全縣共用主檔，需要管理員密碼（若系統有啟用）。
 function updateAmbulanceMaster(payload) {
-  if (!isAdminPasswordValid(payload.adminPassword)) {
+  if (!isAdminPasswordValid(payload.adminPassword, '編輯救護車主檔')) {
     return { status: 'error', code: 'ADMIN_PASSWORD_REQUIRED', message: '管理員密碼錯誤，無法修改救護車主檔。' };
   }
   const vehicleCode = payload.vehicleCode;

@@ -40,12 +40,15 @@ function isTokenValid(token) {
   return typeof token === 'string' && token === CONFIG.API_TOKEN;
 }
 
-// 管理員密碼保護：密碼存在「系統設定」分頁裡（不用改程式碼、不用重新部署），
-// 該分頁「管理員密碼」那一列的值留空＝不啟用保護；有填值時，前端傳來的
-// adminPassword 要完全相符才算通過。見 IncidentActions.gs 的 getSystemSetting()。
-function isAdminPasswordValid(providedPassword) {
+// 管理員密碼保護：密碼存在「系統設定」分頁裡（不用改程式碼、不用重新部署）。
+// actionKey（選填）是這次要檢查的動作名稱（例如「建立案件」），對應該分頁
+// 「需要管理員密碼-建立案件」那一列——設成「停用」的話，即使已經填了管理員密碼，
+// 這個動作也不需要驗證，讓四個受保護的動作可以各自獨立開關，不是全有全無。
+// 沒填 actionKey 時只看有沒有設密碼（給還沒特別分項的呼叫端用）。
+function isAdminPasswordValid(providedPassword, actionKey) {
   const adminPassword = getSystemSetting('管理員密碼');
   if (!adminPassword) return true;
+  if (actionKey && getSystemSetting('需要管理員密碼-' + actionKey) === '停用') return true;
   return typeof providedPassword === 'string' && providedPassword === adminPassword;
 }
 
