@@ -8,16 +8,34 @@
 // 經過 Google試算表存格會被自動存成數字型別，前端再把它送回來時（JSON）也會是
 // 數字而不是文字，如果只轉型其中一邊，"91"（文字）跟 91（數字）用 === 比較會是
 // false，就會誤判成「查無此車輛代碼」。這個坑不只這裡，下面幾個函式也都要注意。
-function verifyAmbulancePlate(vehicleCode, plateLast4) {
+//
+// displayName（選填）：這輛車在「本案件」裡用的代碼，如果跟別的單位撞號，
+// 加入案件時會被自動改成像「91-長濱」這種區分過的代碼，主檔裡並不會有這個
+// 改過的代碼（主檔存的仍是原始的「91」）。所以先用代碼直接比對主檔，
+// 比對不到時，改用「單位＋原始代碼」（displayName，例如「長濱 91」）去找
+// 主檔裡對應的那一列，避免把撞號自動改過代碼的車誤判成「查無此車輛代碼」。
+function verifyAmbulancePlate(vehicleCode, plateLast4, displayName) {
   const doc = getDoc();
   const sheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.AMBULANCE);
   if (!sheet) return { error: { status: 'error', code: 'NO_MASTER', message: '找不到救護車主檔。' } };
 
   const data = sheet.getDataRange().getValues();
+
+  function checkPlate(row) {
+    if (String(row[3]) === String(plateLast4 || '')) return { ok: true };
+    return { error: { status: 'error', code: 'INVALID_PLATE', message: '車牌後4碼不正確，操作已取消。' } };
+  }
+
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === String(vehicleCode)) {
-      if (String(data[i][3]) === String(plateLast4 || '')) return { ok: true };
-      return { error: { status: 'error', code: 'INVALID_PLATE', message: '車牌後4碼不正確，操作已取消。' } };
+      return checkPlate(data[i]);
+    }
+  }
+  if (displayName) {
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][2] || '') + ' ' + String(data[i][0]) === displayName) {
+        return checkPlate(data[i]);
+      }
     }
   }
   return { error: { status: 'error', code: 'VEHICLE_NOT_FOUND', message: '救護車主檔查無此車輛代碼。' } };
@@ -30,12 +48,12 @@ function moveAmbulanceToHospital(payload) {
   if (res.error) return res.error;
   const sheet = res.sheet;
 
-  const plateCheck = verifyAmbulancePlate(payload.ambulanceId, payload.plateLast4);
-  if (plateCheck.error) return plateCheck.error;
-
   const ambFound = findBlockRowByKey(sheet, BLOCK.AMBULANCE, 0, payload.ambulanceId);
   if (!ambFound) return { status: 'error', code: 'AMBULANCE_NOT_FOUND', message: '找不到此救護車（請先將車輛加入本案件）。' };
   const ambulance = ambulanceRowToObject(ambFound.rowValues);
+
+  const plateCheck = verifyAmbulancePlate(payload.ambulanceId, payload.plateLast4, ambulance.displayName);
+  if (plateCheck.error) return plateCheck.error;
 
   let hospFound = findBlockRowByKey(sheet, BLOCK.HOSPITAL, 0, payload.hospitalId);
   if (!hospFound) {
@@ -83,12 +101,12 @@ function moveAmbulanceToStandby(payload) {
   if (res.error) return res.error;
   const sheet = res.sheet;
 
-  const plateCheck = verifyAmbulancePlate(payload.ambulanceId, payload.plateLast4);
-  if (plateCheck.error) return plateCheck.error;
-
   const ambFound = findBlockRowByKey(sheet, BLOCK.AMBULANCE, 0, payload.ambulanceId);
   if (!ambFound) return { status: 'error', code: 'AMBULANCE_NOT_FOUND', message: '找不到此救護車。' };
   const ambulance = ambulanceRowToObject(ambFound.rowValues);
+
+  const plateCheck = verifyAmbulancePlate(payload.ambulanceId, payload.plateLast4, ambulance.displayName);
+  if (plateCheck.error) return plateCheck.error;
 
   if (ambulance.patientIds.length > 0) {
     return {

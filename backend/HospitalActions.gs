@@ -33,7 +33,7 @@ function toggleHospitalStatus(payload) {
   return { status: 'success', data: hospital };
 }
 
-// 把主檔中的醫院加入本案件（案件醫院區新增一列，狀態預設UNKNOWN）
+// 把主檔中的醫院加入本案件（案件醫院區新增一列，狀態預設「可收治」）
 function addHospitalToIncident(payload) {
   const incidentId = sanitizeSheetName(payload.incidentId);
   const res = getIncidentSheetOrError(incidentId);
@@ -58,7 +58,7 @@ function addHospitalToIncident(payload) {
   const hospital = {
     hospitalId: payload.hospitalId,
     name: found[1],
-    status: 'UNKNOWN',
+    status: 'AVAILABLE',
     deliveredCount: 0,
     updatedAt: new Date(),
   };
@@ -101,7 +101,7 @@ function addHospitalsToIncident(payload) {
       skipped.push({ hospitalId: hospitalId, reason: '主檔查無此ID' });
       return;
     }
-    const hospital = { hospitalId: hospitalId, name: found[1], status: 'UNKNOWN', deliveredCount: 0, updatedAt: new Date() };
+    const hospital = { hospitalId: hospitalId, name: found[1], status: 'AVAILABLE', deliveredCount: 0, updatedAt: new Date() };
     appendBlockRow(sheet, BLOCK.HOSPITAL, hospitalObjectToRow(hospital));
     added.push(hospital);
   });
