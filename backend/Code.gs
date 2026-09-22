@@ -11,6 +11,11 @@ const CONFIG = {
   // 不是傷患資料的存取權限（那個是案件共用驗證碼，見 IncidentActions.gs）
   API_TOKEN: 'DAMS_2026_nttccc5405',
 
+  // 管理員密碼：留空＝不啟用管理員保護（跟現在一樣，任何人都能建立案件／改車牌驗證設定）。
+  // 填入密碼後，建立案件、開關車牌驗證這類「影響整個系統或多個案件」的操作，
+  // 就會要求輸入這組密碼才能執行。要改這個設定必須直接改這裡再重新部署。
+  ADMIN_PASSWORD: '',
+
   MASTER_SHEETS: {
     AMBULANCE: '救護車主檔',
     HOSPITAL: '醫院主檔',
@@ -37,6 +42,13 @@ function respond(obj) {
 
 function isTokenValid(token) {
   return typeof token === 'string' && token === CONFIG.API_TOKEN;
+}
+
+// 管理員密碼保護：CONFIG.ADMIN_PASSWORD 留空時一律通過（未啟用保護）；
+// 有設定時，前端傳來的 adminPassword 要完全相符才算通過。
+function isAdminPasswordValid(providedPassword) {
+  if (!CONFIG.ADMIN_PASSWORD) return true;
+  return typeof providedPassword === 'string' && providedPassword === CONFIG.ADMIN_PASSWORD;
 }
 
 // ────────────────────────────────────────────────────────────────

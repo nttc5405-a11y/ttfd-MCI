@@ -91,12 +91,13 @@ APP.Auth.bindCreateForm = function () {
     var name = document.getElementById('newIncidentName').value.trim();
     var passcode = document.getElementById('newIncidentPasscode').value.trim();
     var operatorName = document.getElementById('loginOperatorName').value.trim();
+    var adminPassword = document.getElementById('newIncidentAdminPassword').value;
     if (!name) { APP.UI.alert('請輸入案件名稱。'); return; }
     if (!passcode) { APP.UI.alert('請設定本案件的共用驗證碼。'); return; }
     if (!operatorName) { APP.UI.alert('請先在上方輸入您的姓名。'); return; }
 
     APP.Api.post('createIncident', {
-      incidentName: name, passcode: passcode, creatorName: operatorName,
+      incidentName: name, passcode: passcode, creatorName: operatorName, adminPassword: adminPassword,
     }).then(function (res) {
       if (res.status !== 'success') { APP.UI.alert(res.message || '建立案件失敗'); return; }
       var session = { incidentId: res.incidentId, passcode: passcode, operatorName: operatorName };

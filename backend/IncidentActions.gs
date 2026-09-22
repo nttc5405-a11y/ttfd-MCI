@@ -82,6 +82,9 @@ function updatePlateCheckSetting(payload) {
       if (storedCode !== String(payload.passcode || '')) {
         return { status: 'error', code: 'INVALID_PASSCODE', message: '驗證碼錯誤，無法修改設定。' };
       }
+      if (!isAdminPasswordValid(payload.adminPassword)) {
+        return { status: 'error', code: 'ADMIN_PASSWORD_REQUIRED', message: '管理員密碼錯誤，無法修改設定。' };
+      }
       const enabled = !!payload.enabled;
       indexSheet.getRange(i + 1, 8).setValue(enabled ? '啟用' : '停用');
       const sheet = doc.getSheetByName(incidentId);
@@ -125,6 +128,9 @@ function verifyIncidentLogin(payload) {
 
 // 建立新案件：新增一個分頁並寫入四個區塊的表頭
 function createIncident(payload) {
+  if (!isAdminPasswordValid(payload.adminPassword)) {
+    return { status: 'error', code: 'ADMIN_PASSWORD_REQUIRED', message: '管理員密碼錯誤，無法建立案件。' };
+  }
   const rawName = (payload.incidentName || '').toString().trim();
   if (!rawName) return { status: 'error', code: 'INVALID_NAME', message: '請輸入案件名稱。' };
   if (!payload.passcode) return { status: 'error', code: 'PASSCODE_REQUIRED', message: '請設定本案件的共用驗證碼。' };
