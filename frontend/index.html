@@ -27,32 +27,28 @@
 
 <!-- ══════════════════ 登入畫面 ══════════════════ -->
 <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
-  <div class="w-full max-w-md bg-white rounded-xl shadow p-5 space-y-5">
+  <div class="w-full max-w-md bg-white rounded-xl shadow p-5 space-y-4">
     <h1 class="text-xl font-bold text-center">🚑 大量傷病患管理系統</h1>
 
-    <div class="space-y-2">
-      <label class="font-bold text-sm">您的姓名（登入一次，之後自動帶入）</label>
+    <div class="rounded-lg p-3 space-y-2" style="background:#f1f5f9;">
+      <label class="font-bold text-sm">👤 您的姓名（登入一次，之後自動帶入）</label>
       <input type="text" id="loginOperatorName" placeholder="例如：王小明">
     </div>
 
-    <hr>
-
-    <div class="space-y-2">
-      <div class="font-bold text-sm">進入既有案件</div>
+    <div class="rounded-lg p-3 space-y-2" style="background:#dbeafe;">
+      <div class="font-bold text-sm" style="color:#1e40af;">🔑 進入既有案件</div>
       <select id="incidentSelect"></select>
       <input type="text" id="loginPasscode" placeholder="案件共用驗證碼">
       <button id="loginBtn" class="w-full py-2 rounded bg-blue-600 text-white font-bold">登入</button>
     </div>
 
-    <hr>
-
-    <div class="space-y-2">
-      <div class="font-bold text-sm">建立新案件</div>
+    <div class="rounded-lg p-3 space-y-2" style="background:#d1fae5;">
+      <div class="font-bold text-sm" style="color:#065f46;">🆕 建立新案件</div>
       <input type="text" id="newIncidentName" placeholder="案件名稱，例如：台9線車禍">
       <input type="text" id="newIncidentPasscode" placeholder="設定本案件的共用驗證碼">
       <input type="password" id="newIncidentAdminPassword" placeholder="管理員密碼（系統若未啟用，留空即可）">
       <button id="createIncidentBtn" class="w-full py-2 rounded bg-emerald-600 text-white font-bold">建立並登入</button>
-      <div class="text-xs text-slate-400">建立後，請把驗證碼告知其他要操作本案件的人員。</div>
+      <div class="text-xs" style="color:#047857;">建立後，請把驗證碼告知其他要操作本案件的人員。</div>
     </div>
   </div>
 </div>
@@ -70,7 +66,6 @@
       <button id="addAmbulanceBtn" class="px-3 py-1 rounded bg-blue-600 text-sm">＋ 加入救護車</button>
       <button id="addHospitalBtn" class="px-3 py-1 rounded bg-indigo-600 text-sm">＋ 加入醫院</button>
       <button id="hospitalOverviewBtn" class="px-3 py-1 rounded bg-slate-600 text-sm">📊 醫院總覽</button>
-      <button id="plateCheckToggleBtn" class="px-3 py-1 rounded bg-slate-600 text-sm">🔒 車牌驗證：啟用中</button>
       <button id="logoutBtn" class="px-3 py-1 rounded bg-slate-600 text-sm">登出</button>
     </div>
   </header>
