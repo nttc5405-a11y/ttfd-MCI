@@ -11,6 +11,12 @@
 </head>
 <body>
 
+<!-- 跑馬燈：內容在 Google 試算表「系統設定」分頁的「跑馬燈訊息」那一列設定，
+     留空就不顯示。登入畫面、看板畫面都看得到（放在最外層，兩個畫面共用同一個）。 -->
+<div id="marqueeBar" class="marquee-bar hidden">
+  <div class="marquee-track"><span id="marqueeText"></span></div>
+</div>
+
 <!-- 資料寫入中的全螢幕提示，config.js 的 APP.Api.post 會自動顯示/隱藏 -->
 <div id="loadingOverlay" class="hidden" style="position:fixed;inset:0;z-index:999;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;">
   <div style="background:#fff;padding:20px 28px;border-radius:10px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.25);">

@@ -42,6 +42,7 @@ function ensureSystemSettingsSheet(doc) {
     ['需要管理員密碼-車牌驗證開關', '啟用', '設為「停用」則開關車牌驗證不需要密碼'],
     ['需要管理員密碼-編輯救護車主檔', '啟用', '設為「停用」則新增/編輯救護車主檔不需要密碼'],
     ['需要管理員密碼-編輯醫院主檔', '啟用', '設為「停用」則新增/編輯醫院主檔不需要密碼'],
+    ['跑馬燈訊息', '', '留空則不顯示跑馬燈；填文字後，登入畫面與看板畫面上方都會跑馬燈顯示這段文字（改完立即生效，不用重新部署）'],
   ];
   const existingRows = sheet.getDataRange().getValues();
   const existingKeys = {};
@@ -63,6 +64,12 @@ function getSystemSetting(key) {
     if (String(data[i][0]) === key) return String(data[i][1] || '');
   }
   return '';
+}
+
+// 給登入畫面用（此時還沒登入任何案件，讀不到 getBoardState）。
+// 看板畫面則是直接從 getBoardState 回傳的 marqueeMessage 取得，不用另外呼叫這支。
+function getMarqueeMessage() {
+  return { status: 'success', message: getSystemSetting('跑馬燈訊息') };
 }
 
 function ensureAmbulanceMasterSheet(doc) {

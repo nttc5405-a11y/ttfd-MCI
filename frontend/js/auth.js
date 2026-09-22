@@ -8,6 +8,12 @@ APP.Auth.init = function () {
   APP.Auth.bindCreateForm();
   APP.Auth.bindTopButtons();
 
+  // 登入畫面沒有輪詢機制，跑馬燈訊息只在頁面載入時讀一次；
+  // 進入看板後改由 board.js 每次刷新一併帶回最新內容。
+  APP.Api.get('getMarqueeMessage', {}).then(function (res) {
+    if (res.status === 'success') APP.UI.setMarquee(res.message);
+  }).catch(function () {});
+
   var saved = APP.Auth.getSession();
   if (saved) {
     APP.Auth.enterBoard(saved);

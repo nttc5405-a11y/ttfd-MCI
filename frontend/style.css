@@ -8,6 +8,20 @@ html, body { margin: 0; padding: 0; background: #f1f5f9; font-family: "Microsoft
 }
 @keyframes loading-spin { to { transform: rotate(360deg); } }
 
+.marquee-bar {
+  background: #b91c1c; color: #fff; overflow: hidden;
+  padding: 6px 0; font-size: 14px; font-weight: 700;
+  padding-top: max(6px, env(safe-area-inset-top));
+}
+.marquee-track {
+  display: inline-block; white-space: nowrap; padding-left: 100%;
+  animation: marquee-scroll 18s linear infinite;
+}
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
 /* Tailwind 的 min-h-screen 用固定的 100vh，手機瀏覽器網址列還沒收合時
    100vh 會比實際可視高度高，導致最上面一截內容被瀏覽器自己的網址列蓋住、點不到。
    用 100dvh（動態視窗高度）取代，並且加安全區留白，避免按鈕貼齊最上緣。 */

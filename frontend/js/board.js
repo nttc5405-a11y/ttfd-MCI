@@ -36,6 +36,7 @@ APP.Board.refresh = function () {
     APP.Board.state.plateCheckEnabled = res.plateCheckEnabled !== false;
     APP.Board.render();
     APP.Board.renderPlateCheckToggle();
+    APP.UI.setMarquee(res.marqueeMessage);
   }).catch(function (err) {
     console.error('讀取看板時發生網路錯誤', err);
   });

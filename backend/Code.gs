@@ -72,6 +72,8 @@ function doGet(e) {
 
   try {
     switch (params.action) {
+      case 'getMarqueeMessage':
+        return respond(getMarqueeMessage());
       case 'getAmbulanceMaster':
         return respond(getAmbulanceMaster());
       case 'getHospitalMaster':

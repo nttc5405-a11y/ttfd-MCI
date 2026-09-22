@@ -103,5 +103,6 @@ function getBoardState(rawIncidentId, passcode) {
     data: { patients: patients, ambulances: ambulances, hospitals: hospitals },
     masked: masked,
     plateCheckEnabled: isPlateCheckEnabledForIncident(incidentId),
+    marqueeMessage: getSystemSetting('跑馬燈訊息'),
   };
 }
