@@ -243,7 +243,12 @@ function addAmbulancesToIncident(payload) {
 // 只有「同一個單位、同一個代碼」才是真的重複，才會拒絕。不同單位代碼相同時，
 // 系統會自動在代碼後面加上單位名稱來區分（存到系統裡的識別碼會變成例如「91-乙分隊」，
 // 車牌驗證、指派傷患等操作都是用這個識別碼比對，使用者不用自己想辦法避開撞號）。
+//
+// 這份主檔全縣共用、影響所有案件，所以跟建立案件一樣需要管理員密碼（若系統有啟用）。
 function createAmbulanceMasterAndAdd(payload) {
+  if (!isAdminPasswordValid(payload.adminPassword)) {
+    return { status: 'error', code: 'ADMIN_PASSWORD_REQUIRED', message: '管理員密碼錯誤，無法新增救護車主檔。' };
+  }
   const rawCode = (payload.vehicleCode || '').toString().trim();
   if (!rawCode) return { status: 'error', code: 'INVALID_VEHICLE_CODE', message: '請輸入車輛代碼。' };
   const unitName = (payload.unitName || '').toString().trim();
@@ -289,7 +294,11 @@ function createAmbulanceMasterAndAdd(payload) {
 
 // 修正救護車主檔資料（單位類別/隊名/車牌後4碼/隨車人員）。注意：已經加入某案件的
 // 救護車卡片顯示名稱是加入當下複製的一份快照，修改主檔不會回頭更新已存在的案件紀錄。
+// 一樣是全縣共用主檔，需要管理員密碼（若系統有啟用）。
 function updateAmbulanceMaster(payload) {
+  if (!isAdminPasswordValid(payload.adminPassword)) {
+    return { status: 'error', code: 'ADMIN_PASSWORD_REQUIRED', message: '管理員密碼錯誤，無法修改救護車主檔。' };
+  }
   const vehicleCode = payload.vehicleCode;
   if (!vehicleCode) return { status: 'error', code: 'INVALID_VEHICLE_CODE', message: '缺少車輛代碼。' };
 

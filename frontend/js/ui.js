@@ -8,6 +8,12 @@ APP.UI.confirm = function (message, onYes) {
   if (window.confirm(message)) onYes();
 };
 
+// 管理員密碼輸入（系統若未啟用管理員密碼保護，留空送出後端會直接放行）。
+// 回傳 null 代表使用者按了取消，呼叫端應該直接中止、不要送出請求。
+APP.UI.promptAdminPassword = function () {
+  return window.prompt('請輸入管理員密碼（系統若未啟用，留空即可）：');
+};
+
 // 資料寫入中的全螢幕提示——蓋住畫面＋文字，讓操作者知道系統正在處理
 // （不是沒按到），同時順便擋掉手快連點造成同一動作被重複送出兩次。
 // 用計數器而不是布林值，是因為理論上可能同時有一個以上的寫入動作在跑

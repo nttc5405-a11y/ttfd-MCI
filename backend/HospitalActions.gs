@@ -114,8 +114,12 @@ function addHospitalsToIncident(payload) {
   return { status: 'success', added: added, skipped: skipped };
 }
 
-// 前端直接新增一間醫院到主檔，並立刻加進目前這個案件（現場常常需要臨時登記新醫院/收治點）
+// 前端直接新增一間醫院到主檔，並立刻加進目前這個案件（現場常常需要臨時登記新醫院/收治點）。
+// 這份主檔全縣共用、影響所有案件，所以跟建立案件一樣需要管理員密碼（若系統有啟用）。
 function createHospitalMasterAndAdd(payload) {
+  if (!isAdminPasswordValid(payload.adminPassword)) {
+    return { status: 'error', code: 'ADMIN_PASSWORD_REQUIRED', message: '管理員密碼錯誤，無法新增醫院主檔。' };
+  }
   const name = (payload.name || '').toString().trim();
   if (!name) return { status: 'error', code: 'INVALID_NAME', message: '請輸入醫院名稱。' };
 
@@ -139,7 +143,11 @@ function createHospitalMasterAndAdd(payload) {
 
 // 修正醫院主檔資料（名稱/地址/電話）。注意：已經加入某案件的醫院卡片顯示名稱是
 // 加入當下複製的一份快照，修改主檔不會回頭更新已存在的案件紀錄。
+// 一樣是全縣共用主檔，需要管理員密碼（若系統有啟用）。
 function updateHospitalMaster(payload) {
+  if (!isAdminPasswordValid(payload.adminPassword)) {
+    return { status: 'error', code: 'ADMIN_PASSWORD_REQUIRED', message: '管理員密碼錯誤，無法修改醫院主檔。' };
+  }
   const hospitalId = payload.hospitalId;
   if (!hospitalId) return { status: 'error', code: 'INVALID_ID', message: '缺少醫院ID。' };
 

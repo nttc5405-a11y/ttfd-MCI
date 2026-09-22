@@ -112,9 +112,11 @@ APP.Hospital.submitCreateHospital = function () {
   if (!name) { APP.UI.alert('請輸入醫院名稱。'); return; }
   var address = document.getElementById('newHospitalAddress').value.trim();
   var phone = document.getElementById('newHospitalPhone').value.trim();
+  var adminPassword = APP.UI.promptAdminPassword();
+  if (adminPassword === null) return;
 
   APP.Api.post('createHospitalMasterAndAdd', APP.DragDrop.withSession({
-    name: name, address: address, phone: phone,
+    name: name, address: address, phone: phone, adminPassword: adminPassword,
   })).then(function (r) {
     if (r.status !== 'success') { APP.UI.alert(r.message || '建立失敗'); return; }
     document.getElementById('newHospitalName').value = '';
@@ -138,12 +140,15 @@ APP.Hospital.openEditHospital = function (h) {
 APP.Hospital.saveEditHospital = function () {
   var name = document.getElementById('editHospitalName').value.trim();
   if (!name) { APP.UI.alert('請輸入醫院名稱。'); return; }
+  var adminPassword = APP.UI.promptAdminPassword();
+  if (adminPassword === null) return;
 
   APP.Api.post('updateHospitalMaster', APP.DragDrop.withSession({
     hospitalId: APP.Hospital.currentEditingHospitalId,
     name: name,
     address: document.getElementById('editHospitalAddress').value.trim(),
     phone: document.getElementById('editHospitalPhone').value.trim(),
+    adminPassword: adminPassword,
   })).then(function (r) {
     if (r.status !== 'success') { APP.UI.alert(r.message || '更新失敗'); return; }
     document.getElementById('editHospitalModal').classList.add('hidden');
@@ -234,6 +239,8 @@ APP.Hospital.closeAddAmbulanceModal = function () {
 APP.Hospital.submitCreateAmbulance = function () {
   var vehicleCode = document.getElementById('newAmbulanceVehicleCode').value.trim();
   if (!vehicleCode) { APP.UI.alert('請輸入車輛代碼。'); return; }
+  var adminPassword = APP.UI.promptAdminPassword();
+  if (adminPassword === null) return;
 
   APP.Api.post('createAmbulanceMasterAndAdd', APP.DragDrop.withSession({
     vehicleCode: vehicleCode,
@@ -241,6 +248,7 @@ APP.Hospital.submitCreateAmbulance = function () {
     unitName: document.getElementById('newAmbulanceUnitName').value.trim(),
     plateLast4: document.getElementById('newAmbulancePlateLast4').value.trim(),
     crew: document.getElementById('newAmbulanceCrew').value.trim(),
+    adminPassword: adminPassword,
   })).then(function (r) {
     if (r.status !== 'success') { APP.UI.alert(r.message || '建立失敗'); return; }
     document.getElementById('newAmbulanceVehicleCode').value = '';
@@ -269,12 +277,16 @@ APP.Hospital.openEditAmbulance = function (v) {
 };
 
 APP.Hospital.saveEditAmbulance = function () {
+  var adminPassword = APP.UI.promptAdminPassword();
+  if (adminPassword === null) return;
+
   APP.Api.post('updateAmbulanceMaster', APP.DragDrop.withSession({
     vehicleCode: APP.Hospital.currentEditingVehicleCode,
     unitType: document.getElementById('editAmbulanceUnitType').value.trim(),
     unitName: document.getElementById('editAmbulanceUnitName').value.trim(),
     plateLast4: document.getElementById('editAmbulancePlateLast4').value.trim(),
     crew: document.getElementById('editAmbulanceCrew').value.trim(),
+    adminPassword: adminPassword,
   })).then(function (r) {
     if (r.status !== 'success') { APP.UI.alert(r.message || '更新失敗'); return; }
     document.getElementById('editAmbulanceModal').classList.add('hidden');

@@ -85,9 +85,7 @@ APP.Board.togglePlateCheck = function () {
     ? '確定要開啟車牌驗證嗎？開啟後，送醫院／回待命都要輸入正確的車牌後4碼才能操作。'
     : '確定要關閉車牌驗證嗎？關閉後，任何人點「送達醫院」「返回待命」都不需要輸入車牌，操作會變快但少了防呆機制，請在現場狀況允許時才關閉。';
   APP.UI.confirm(msg, function () {
-    // 系統若沒啟用管理員密碼保護，這裡留空送出後端也會直接放行；
-    // 按「取消」則整個操作直接中止，不送出請求。
-    var adminPassword = window.prompt('請輸入管理員密碼（系統若未啟用，留空即可）：');
+    var adminPassword = APP.UI.promptAdminPassword();
     if (adminPassword === null) return;
     APP.Api.post('updatePlateCheckSetting', APP.DragDrop.withSession({
       enabled: next, passcode: session.passcode, adminPassword: adminPassword,
