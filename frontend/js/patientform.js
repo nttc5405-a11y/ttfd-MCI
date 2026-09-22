@@ -3,6 +3,7 @@ APP.PatientForm.mode = 'create'; // create | retriage
 APP.PatientForm.editingPatient = null;
 APP.PatientForm.selectedColor = null;
 APP.PatientForm.selectedGender = null;
+APP.PatientForm.afterRetriageCallback = null; // 卸下病患/交接前的傷情再確認會用到
 
 var GENDER_LABEL = { MALE: '男', FEMALE: '女', UNKNOWN: '不明' };
 
@@ -58,14 +59,19 @@ APP.PatientForm.openCreate = function () {
   APP.Camera.reset();
 };
 
-APP.PatientForm.openRetriage = function (patient) {
+// afterSave（選填）：確認/送出後要接著做的事（例如卸下病患前、交接前的傷情再確認），
+// 會收到後端回傳的最新傷患物件。customTitle（選填）：彈窗標題，預設是一般的重新檢傷分類。
+// 預先選取傷患「目前」的顏色——多數情況是來確認「有沒有變化」，沒變化的話點一下同一個
+// 顏色（已經反白）就能送出，不用強迫使用者每次都重新想一次答案。
+APP.PatientForm.openRetriage = function (patient, afterSave, customTitle) {
   APP.PatientForm.mode = 'retriage';
   APP.PatientForm.editingPatient = patient;
-  APP.PatientForm.selectedColor = null;
-  document.getElementById('patientFormTitle').textContent = '重新檢傷分類：' + patient.triageId;
+  APP.PatientForm.afterRetriageCallback = afterSave || null;
+  APP.PatientForm.selectedColor = patient.color;
+  document.getElementById('patientFormTitle').textContent = customTitle || ('重新檢傷分類：' + patient.triageId);
   document.getElementById('extraFieldsBlock').classList.add('hidden');
   document.getElementById('cameraBlock').classList.add('hidden');
-  APP.PatientForm.highlightColor(null);
+  APP.PatientForm.highlightColor(patient.color);
   document.getElementById('patientFormModal').classList.remove('hidden');
 };
 
@@ -134,6 +140,9 @@ APP.PatientForm.getStartSummaryText = function () {
 APP.PatientForm.close = function () {
   document.getElementById('patientFormModal').classList.add('hidden');
   if (APP.PatientForm.mode === 'create') APP.Camera.stop();
+  // 使用者自己按取消／叉掉視窗時，後續動作（卸下病患、交接）要整個中止，
+  // 不能留著上一次設定的callback，等下次無關的重新檢傷卻被誤觸發。
+  APP.PatientForm.afterRetriageCallback = null;
 };
 
 APP.PatientForm.submit = function () {
@@ -145,8 +154,11 @@ APP.PatientForm.submit = function () {
       newColor: APP.PatientForm.selectedColor,
     })).then(function (res) {
       if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
+      var callback = APP.PatientForm.afterRetriageCallback;
+      APP.PatientForm.afterRetriageCallback = null;
       APP.PatientForm.close();
       APP.Board.refresh();
+      if (callback) callback(res.data);
     }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
     return;
   }

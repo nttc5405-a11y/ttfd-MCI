@@ -2,19 +2,47 @@
 //  案件層級：初始化、建立/結案、登入驗證、案件清單
 // ═══════════════════════════════════════════════════════════════
 
-// 手動執行一次（或用選單「① 初始化系統」）：建立三個共用主檔分頁
+// 手動執行一次（或用選單「① 初始化系統」）：建立共用主檔分頁
 function initializeSpreadsheet() {
   const doc = getDoc();
   ensureAmbulanceMasterSheet(doc);
   ensureHospitalMasterSheet(doc);
   ensureIncidentIndexSheet(doc);
+  ensureSystemSettingsSheet(doc);
 
   const ui = SpreadsheetApp.getUi();
   ui.alert(
     '✅ 初始化完成',
-    '已建立/確認「救護車主檔」「醫院主檔」「案件清單」三個分頁。\n\n請到「救護車主檔」「醫院主檔」填入實際的救護車與醫院資料（範例列可以刪除）。',
+    '已建立/確認「救護車主檔」「醫院主檔」「案件清單」「系統設定」四個分頁。\n\n' +
+    '請到「救護車主檔」「醫院主檔」填入實際的救護車與醫院資料（範例列可以刪除）。\n' +
+    '要啟用管理員密碼保護，請到「系統設定」分頁「管理員密碼」那一列填入密碼即可，不用改程式碼、不用重新部署。',
     ui.ButtonSet.OK
   );
+}
+
+// 系統設定分頁：目前只有「管理員密碼」一項，未來要加其他系統層級設定也可以放這裡，
+// 格式是「設定項目｜值」兩欄，用項目名稱查值，不依賴固定列號。
+function ensureSystemSettingsSheet(doc) {
+  let sheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.SYSTEM_SETTINGS);
+  if (sheet) return sheet;
+  sheet = doc.insertSheet(CONFIG.MASTER_SHEETS.SYSTEM_SETTINGS);
+  const headers = ['設定項目', '值', '說明'];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold').setBackground('#d9ead3');
+  sheet.setFrozenRows(1);
+  sheet.appendRow(['管理員密碼', '', '留空＝不需要密碼；填值後，建立案件、開關車牌驗證、編輯救護車/醫院主檔都需要輸入這組密碼']);
+  return sheet;
+}
+
+// 讀「系統設定」分頁裡某個設定項目的值；分頁或項目不存在時回傳空字串。
+function getSystemSetting(key) {
+  const doc = getDoc();
+  const sheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.SYSTEM_SETTINGS);
+  if (!sheet) return '';
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === key) return String(data[i][1] || '');
+  }
+  return '';
 }
 
 function ensureAmbulanceMasterSheet(doc) {
@@ -101,7 +129,8 @@ function updatePlateCheckSetting(payload) {
 function isProtectedSheetName(name) {
   return name === CONFIG.MASTER_SHEETS.AMBULANCE ||
     name === CONFIG.MASTER_SHEETS.HOSPITAL ||
-    name === CONFIG.MASTER_SHEETS.INCIDENT_INDEX;
+    name === CONFIG.MASTER_SHEETS.INCIDENT_INDEX ||
+    name === CONFIG.MASTER_SHEETS.SYSTEM_SETTINGS;
 }
 
 // 登入：比對案件共用驗證碼

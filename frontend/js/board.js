@@ -167,10 +167,22 @@ APP.Board.buildAmbulanceCard = function (a) {
   var div = document.createElement('div');
   div.className = 'ambulance-card amb-status-' + a.status;
   div.dataset.ambulanceId = a.vehicleCode;
+
+  var onboardPatients = a.patientIds.map(function (pid) {
+    return APP.Board.state.patients.find(function (p) { return p.triageId === pid; });
+  }).filter(Boolean);
+  var patientsHtml = onboardPatients.length
+    ? onboardPatients.map(function (p) {
+      return '<span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;">' +
+        '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' +
+        (COLOR_DOT[p.color] || '#94a3b8') + ';"></span>' + p.triageId + '</span>';
+    }).join('')
+    : '無';
+
   div.innerHTML =
     '<div style="font-weight:700">' + a.displayName + '</div>' +
     '<div style="font-size:14px">' + (AMB_STATUS_LABEL[a.status] || a.status) + '</div>' +
-    '<div style="font-size:12px">車上傷患：' + (a.patientIds.length ? a.patientIds.join('、') : '無') + '</div>';
+    '<div style="font-size:12px">車上傷患：' + patientsHtml + '</div>';
   div.addEventListener('click', function () {
     if (APP.Board.selectedPatientId) {
       APP.DragDrop.movePatient(APP.Board.selectedPatientId, a.vehicleCode, false);

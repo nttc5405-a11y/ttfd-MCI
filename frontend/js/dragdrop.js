@@ -129,7 +129,9 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
       var row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding:8px 0;gap:8px;flex-wrap:wrap;';
       var label = document.createElement('span');
-      label.textContent = p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' +
+      label.innerHTML = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;background:' +
+        (COLOR_DOT[p.color] || '#94a3b8') + ';"></span>' +
+        p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' +
         (APP.Board.state.masked ? '' : ' ' + (p.name || '無名氏'));
       row.appendChild(label);
 
@@ -143,11 +145,15 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
         dischargeBtn.textContent = '卸下病患（完成交接）';
         dischargeBtn.style.cssText = 'padding:6px 10px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:12px;';
         dischargeBtn.addEventListener('click', function () {
-          APP.Api.post('dischargePatientFromAmbulance', APP.DragDrop.withSession({ patientId: p.triageId })).then(function (res) {
-            if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
-            APP.Board.refresh();
-            APP.DragDrop.closeAmbulanceDetail();
-          });
+          // 傷情在送醫過程中可能改變，卸下前先讓使用者確認/更新一次檢傷顏色
+          // （預設帶入目前的顏色，沒變化的話點一下確認就好，不用重新想一次）。
+          APP.DragDrop.closeAmbulanceDetail();
+          APP.PatientForm.openRetriage(p, function () {
+            APP.Api.post('dischargePatientFromAmbulance', APP.DragDrop.withSession({ patientId: p.triageId })).then(function (res) {
+              if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
+              APP.Board.refresh();
+            }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+          }, '確認傷情後卸下：' + p.triageId);
         });
         btnGroup.appendChild(dischargeBtn);
       }
@@ -183,7 +189,7 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
     handoverBtn.classList.remove('hidden');
     handoverBtn.onclick = function () {
       APP.DragDrop.closeAmbulanceDetail();
-      APP.Handover.open(ambulance, patients);
+      APP.DragDrop.confirmColorsThenHandover(ambulance, patients);
     };
   } else {
     hint.textContent = '要送醫院請按下方「送達醫院」；要回待命請按「返回待命」（車上需先清空傷患）。';
@@ -195,4 +201,28 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
 
 APP.DragDrop.closeAmbulanceDetail = function () {
   document.getElementById('ambulanceDetailModal').classList.add('hidden');
+};
+
+// 交接前逐一確認/更新每位傷患的檢傷顏色（傷情在送醫過程中可能改變），
+// 全部確認完才真正打開交接單視窗，確保交接單上的顏色是最新的，
+// 而不是傷患剛上車那一刻的舊顏色。用回呼一次處理一位，避免同時開好幾個
+// 選色視窗搞混。
+APP.DragDrop.confirmColorsThenHandover = function (ambulance, patients) {
+  if (patients.length === 0) {
+    APP.Handover.open(ambulance, patients);
+    return;
+  }
+  var confirmed = [];
+  function next(index) {
+    if (index >= patients.length) {
+      APP.Handover.open(ambulance, confirmed);
+      return;
+    }
+    var p = patients[index];
+    APP.PatientForm.openRetriage(p, function (updatedPatient) {
+      confirmed.push(updatedPatient || p);
+      next(index + 1);
+    }, '交接前確認傷情（' + (index + 1) + '/' + patients.length + '）：' + p.triageId);
+  }
+  next(0);
 };
