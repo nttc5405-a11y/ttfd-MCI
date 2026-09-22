@@ -43,10 +43,56 @@ function ensureIncidentIndexSheet(doc) {
   let sheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.INCIDENT_INDEX);
   if (sheet) return sheet;
   sheet = doc.insertSheet(CONFIG.MASTER_SHEETS.INCIDENT_INDEX);
-  const headers = ['案件ID', '顯示名稱', '建立時間', '建立人', '共用驗證碼', '狀態', '結案時間'];
+  const headers = ['案件ID', '顯示名稱', '建立時間', '建立人', '共用驗證碼', '狀態', '結案時間', '車牌驗證'];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold').setBackground('#d9ead3');
   sheet.setFrozenRows(1);
   return sheet;
+}
+
+// 這個案件送醫/回待命時，是否要求輸入車牌後4碼才能操作（現場自行決定要不要開啟）。
+// 讀第8欄（H欄，索引7）；已存在的舊案件分頁沒有這一欄時，值會是空白，
+// 一律視為「啟用」（沿用原本一定要驗車牌的行為，不會因為升級而突然變寬鬆）。
+function isPlateCheckEnabledForIncident(incidentId) {
+  const doc = getDoc();
+  const indexSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.INCIDENT_INDEX);
+  if (!indexSheet) return true;
+  const data = indexSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(incidentId)) {
+      return String(data[i][7] || '') !== '停用';
+    }
+  }
+  return true;
+}
+
+// 開啟/關閉本案件的車牌驗證，需要正確的案件共用驗證碼才能改（跟結案一樣，
+// 這是會影響所有裝置操作方式的設定，不應該被誤觸就改掉）。
+function updatePlateCheckSetting(payload) {
+  const incidentId = sanitizeSheetName(payload.incidentId);
+  if (!incidentId) return { status: 'error', code: 'INVALID_INCIDENT_ID', message: '案件編號無效。' };
+
+  const doc = getDoc();
+  const indexSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.INCIDENT_INDEX);
+  if (!indexSheet) return { status: 'error', code: 'NO_INDEX', message: '找不到案件清單分頁。' };
+
+  const data = indexSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === incidentId) {
+      const storedCode = String(data[i][4] || '');
+      if (storedCode !== String(payload.passcode || '')) {
+        return { status: 'error', code: 'INVALID_PASSCODE', message: '驗證碼錯誤，無法修改設定。' };
+      }
+      const enabled = !!payload.enabled;
+      indexSheet.getRange(i + 1, 8).setValue(enabled ? '啟用' : '停用');
+      const sheet = doc.getSheetByName(incidentId);
+      if (sheet) {
+        appendAuditLog(sheet, payload.operatorName || '', 'UPDATE_PLATE_CHECK', incidentId,
+          '車牌驗證設定改為：' + (enabled ? '啟用' : '停用'), {});
+      }
+      return { status: 'success', plateCheckEnabled: enabled };
+    }
+  }
+  return { status: 'error', code: 'INCIDENT_NOT_FOUND', message: '找不到此案件。' };
 }
 
 function isProtectedSheetName(name) {

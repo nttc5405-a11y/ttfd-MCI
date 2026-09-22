@@ -1,6 +1,13 @@
 html, body { margin: 0; padding: 0; background: #f1f5f9; font-family: "Microsoft JhengHei", sans-serif; }
 .hidden { display: none !important; }
 
+.loading-spinner {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 3px solid #cbd5e1; border-top-color: #2563eb;
+  animation: loading-spin .8s linear infinite;
+}
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+
 /* Tailwind 的 min-h-screen 用固定的 100vh，手機瀏覽器網址列還沒收合時
    100vh 會比實際可視高度高，導致最上面一截內容被瀏覽器自己的網址列蓋住、點不到。
    用 100dvh（動態視窗高度）取代，並且加安全區留白，避免按鈕貼齊最上緣。 */

@@ -42,7 +42,18 @@ APP.DragDrop.movePatient = function (patientId, ambulanceId, confirmSecondRed) {
 // 跳出車牌後4碼輸入視窗，輸入正確才會呼叫 runFn(plateLast4)。
 // displayLabel（選填）是彈窗上要顯示給使用者看的名稱，跟實際送給後端比對用的
 // ambulanceId 分開，避免使用者看到系統內部自動組合過的代碼而困惑。
+//
+// 如果本案件已經關閉車牌驗證（見 board.js 的 togglePlateCheck），
+// 就不跳輸入視窗，直接執行動作——後端也會依同一個設定跳過驗證，
+// 這裡只是配合前端不要多此一舉跳出用不到的輸入框。
 APP.DragDrop.askPlateAndRun = function (ambulanceId, runFn, displayLabel) {
+  if (!APP.Board.state.plateCheckEnabled) {
+    runFn('').then(function (res) {
+      if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
+      APP.Board.refresh();
+    }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+    return;
+  }
   APP.UI.promptPlate(ambulanceId, function (plateLast4) {
     runFn(plateLast4).then(function (res) {
       if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }

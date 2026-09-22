@@ -1,5 +1,5 @@
 APP.Board = APP.Board || {};
-APP.Board.state = { patients: [], ambulances: [], hospitals: [], masked: true };
+APP.Board.state = { patients: [], ambulances: [], hospitals: [], masked: true, plateCheckEnabled: true };
 APP.Board.pollTimer = null;
 APP.Board.selectedPatientId = null; // 點選式指派：目前選取中、等待指派給救護車的傷患
 
@@ -33,7 +33,9 @@ APP.Board.refresh = function () {
     }
     APP.Board.state = res.data;
     APP.Board.state.masked = res.masked;
+    APP.Board.state.plateCheckEnabled = res.plateCheckEnabled !== false;
     APP.Board.render();
+    APP.Board.renderPlateCheckToggle();
   }).catch(function (err) {
     console.error('讀取看板時發生網路錯誤', err);
   });
@@ -60,7 +62,37 @@ document.addEventListener('DOMContentLoaded', function () {
       APP.Board.render();
     });
   }
+  var plateCheckBtn = document.getElementById('plateCheckToggleBtn');
+  if (plateCheckBtn) {
+    plateCheckBtn.addEventListener('click', APP.Board.togglePlateCheck);
+  }
 });
+
+// 這是整個案件共用的設定（影響所有裝置），所以改的時候要再次確認，
+// 避免手滑點到就把「送醫/回待命要驗車牌」這個防呆機制關掉或打開。
+APP.Board.renderPlateCheckToggle = function () {
+  var btn = document.getElementById('plateCheckToggleBtn');
+  if (!btn) return;
+  var enabled = APP.Board.state.plateCheckEnabled;
+  btn.textContent = enabled ? '🔒 車牌驗證：啟用中' : '🔓 車牌驗證：已關閉';
+};
+
+APP.Board.togglePlateCheck = function () {
+  var session = APP.Auth.getSession();
+  if (!session) return;
+  var next = !APP.Board.state.plateCheckEnabled;
+  var msg = next
+    ? '確定要開啟車牌驗證嗎？開啟後，送醫院／回待命都要輸入正確的車牌後4碼才能操作。'
+    : '確定要關閉車牌驗證嗎？關閉後，任何人點「送達醫院」「返回待命」都不需要輸入車牌，操作會變快但少了防呆機制，請在現場狀況允許時才關閉。';
+  APP.UI.confirm(msg, function () {
+    APP.Api.post('updatePlateCheckSetting', APP.DragDrop.withSession({
+      enabled: next, passcode: session.passcode,
+    })).then(function (res) {
+      if (res.status !== 'success') { APP.UI.alert(res.message || '設定失敗'); return; }
+      APP.Board.refresh();
+    }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+  });
+};
 
 APP.Board.renderSelectionHint = function () {
   var bar = document.getElementById('selectionHint');

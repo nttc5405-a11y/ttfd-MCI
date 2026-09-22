@@ -24,11 +24,17 @@ APP.Api = {
     payload = payload || {};
     payload.action = action;
     payload.token = APP.Config.API_TOKEN;
+    // 每個寫入動作都跳「資料建置中」提示並蓋住畫面，一方面讓操作者知道系統
+    // 正在處理、不是沒按到，一方面也順便擋掉手快連點造成同一動作重複送出。
+    // 查詢/輪詢（get）不會頻繁跳提示打斷畫面，所以只包這裡（post）。
+    if (APP.UI && APP.UI.showLoading) APP.UI.showLoading('資料建置中...');
     // 刻意不設定 Content-Type（讓瀏覽器預設送 text/plain），
     // 這樣呼叫 Apps Script 才不會觸發 CORS 預檢請求而失敗。
     return fetch(APP.Config.BASE_URL, {
       method: 'POST',
       body: JSON.stringify(payload),
-    }).then(function (r) { return r.json(); });
+    }).then(function (r) { return r.json(); }).finally(function () {
+      if (APP.UI && APP.UI.hideLoading) APP.UI.hideLoading();
+    });
   },
 };

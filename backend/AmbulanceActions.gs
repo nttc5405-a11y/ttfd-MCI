@@ -52,8 +52,10 @@ function moveAmbulanceToHospital(payload) {
   if (!ambFound) return { status: 'error', code: 'AMBULANCE_NOT_FOUND', message: '找不到此救護車（請先將車輛加入本案件）。' };
   const ambulance = ambulanceRowToObject(ambFound.rowValues);
 
-  const plateCheck = verifyAmbulancePlate(payload.ambulanceId, payload.plateLast4, ambulance.displayName);
-  if (plateCheck.error) return plateCheck.error;
+  if (isPlateCheckEnabledForIncident(incidentId)) {
+    const plateCheck = verifyAmbulancePlate(payload.ambulanceId, payload.plateLast4, ambulance.displayName);
+    if (plateCheck.error) return plateCheck.error;
+  }
 
   let hospFound = findBlockRowByKey(sheet, BLOCK.HOSPITAL, 0, payload.hospitalId);
   if (!hospFound) {
@@ -105,8 +107,10 @@ function moveAmbulanceToStandby(payload) {
   if (!ambFound) return { status: 'error', code: 'AMBULANCE_NOT_FOUND', message: '找不到此救護車。' };
   const ambulance = ambulanceRowToObject(ambFound.rowValues);
 
-  const plateCheck = verifyAmbulancePlate(payload.ambulanceId, payload.plateLast4, ambulance.displayName);
-  if (plateCheck.error) return plateCheck.error;
+  if (isPlateCheckEnabledForIncident(incidentId)) {
+    const plateCheck = verifyAmbulancePlate(payload.ambulanceId, payload.plateLast4, ambulance.displayName);
+    if (plateCheck.error) return plateCheck.error;
+  }
 
   if (ambulance.patientIds.length > 0) {
     return {

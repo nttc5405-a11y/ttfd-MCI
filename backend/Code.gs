@@ -107,6 +107,8 @@ function doPost(e) {
         return respond(createIncident(payload));
       case 'closeIncident':
         return respond(closeIncident(payload));
+      case 'updatePlateCheckSetting':
+        return respond(updatePlateCheckSetting(payload));
       case 'createPatient':
         return respond(createPatient(payload));
       case 'retriagePatient':

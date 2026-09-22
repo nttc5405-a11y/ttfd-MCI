@@ -98,5 +98,10 @@ function getBoardState(rawIncidentId, passcode) {
     .filter(function (r) { return r[0]; })
     .map(hospitalRowToObject);
 
-  return { status: 'success', data: { patients: patients, ambulances: ambulances, hospitals: hospitals }, masked: masked };
+  return {
+    status: 'success',
+    data: { patients: patients, ambulances: ambulances, hospitals: hospitals },
+    masked: masked,
+    plateCheckEnabled: isPlateCheckEnabledForIncident(incidentId),
+  };
 }
