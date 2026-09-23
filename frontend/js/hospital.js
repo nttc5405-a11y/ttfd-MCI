@@ -38,9 +38,6 @@ APP.Hospital.init = function () {
     var p = APP.Board.state.patients.find(function (x) { return x.triageId === row.dataset.triageId; });
     if (p) APP.Hospital.openPatientDetail(p);
   });
-  document.getElementById('patientDetailCloseBtn').addEventListener('click', function () {
-    document.getElementById('patientDetailModal').classList.add('hidden');
-  });
 
   document.getElementById('addAmbulanceBtn').addEventListener('click', APP.Hospital.openAddAmbulanceModal);
   document.getElementById('ambulanceAddCancelBtn').addEventListener('click', APP.Hospital.closeAddAmbulanceModal);
@@ -312,50 +309,58 @@ APP.Hospital.submitAddSelectedAmbulances = function () {
 // ─── 各院收治情形總覽（純前端彙整既有看板資料，不用另外呼叫後端） ──────────
 // 用 p.hospitalId 而不是 ambulance.patientIds 篩選，這樣即使傷患已經「卸下」
 // （離開救護車的車上清單），只要送達醫院ID還在，一樣會列在該院名下。
-APP.Hospital.openOverview = function () {
-  var body = document.getElementById('hospitalOverviewBody');
-  var hospitals = APP.Board.state.hospitals;
-
+// 抽成獨立函式是因為操作看板內的彈窗版、以及登入畫面「只看醫院總覽」的獨立頁面版，
+// 需要用同一套渲染邏輯（差別只在資料來源與外層容器）。
+APP.Hospital.buildOverviewHTML = function (hospitals, patients, masked) {
   if (hospitals.length === 0) {
-    body.innerHTML = '<div class="empty-hint">本案件尚未加入任何醫院。</div>';
-  } else {
-    body.innerHTML = hospitals.map(function (h) {
-      var patients = APP.Board.state.patients.filter(function (p) { return p.hospitalId === h.hospitalId; });
-      var rows = patients.length === 0
-        ? '<div class="empty-hint" style="padding:8px 0;">目前無傷患</div>'
-        : patients.map(function (p) {
-          var nameLine = APP.Board.state.masked ? '' : ('　' + (p.name || '無名氏'));
-          return '<div data-triage-id="' + p.triageId + '" style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:14px;cursor:pointer;">' +
-            '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;background:' +
-            (COLOR_DOT[p.color] || '#94a3b8') + ';"></span>' +
-            p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' +
-            (p.tagNumber ? '　貼紙:' + p.tagNumber : '') + nameLine +
-            ' <span style="color:#94a3b8;">▸點看照片/傷情</span>' +
-            '</div>';
-        }).join('');
-      return '<div style="margin-bottom:14px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
-        '<div style="background:#f8fafc;padding:8px 12px;font-weight:700;display:flex;justify-content:space-between;gap:8px;">' +
-        '<span>' + h.name + '</span>' +
-        '<span style="font-weight:400;font-size:13px;color:#64748b;">' +
-        (HOSP_STATUS_LABEL[h.status] || h.status) + '　共 ' + patients.length + ' 人</span>' +
-        '</div>' +
-        '<div style="padding:2px 12px;">' + rows + '</div>' +
-        '</div>';
-    }).join('');
+    return '<div class="empty-hint">本案件尚未加入任何醫院。</div>';
   }
+  return hospitals.map(function (h) {
+    var hp = patients.filter(function (p) { return p.hospitalId === h.hospitalId; });
+    var rows = hp.length === 0
+      ? '<div class="empty-hint" style="padding:8px 0;">目前無傷患</div>'
+      : hp.map(function (p) {
+        var nameLine = masked ? '' : ('　' + (p.name || '無名氏'));
+        return '<div data-triage-id="' + p.triageId + '" style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:14px;cursor:pointer;">' +
+          '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;background:' +
+          (COLOR_DOT[p.color] || '#94a3b8') + ';"></span>' +
+          p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' +
+          (p.tagNumber ? '　貼紙:' + p.tagNumber : '') + nameLine +
+          ' <span style="color:#94a3b8;">▸點看照片/傷情</span>' +
+          '</div>';
+      }).join('');
+    return '<div style="margin-bottom:14px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
+      '<div style="background:#f8fafc;padding:8px 12px;font-weight:700;display:flex;justify-content:space-between;gap:8px;">' +
+      '<span>' + h.name + '</span>' +
+      '<span style="font-weight:400;font-size:13px;color:#64748b;">' +
+      (HOSP_STATUS_LABEL[h.status] || h.status) + '　共 ' + hp.length + ' 人</span>' +
+      '</div>' +
+      '<div style="padding:2px 12px;">' + rows + '</div>' +
+      '</div>';
+  }).join('');
+};
 
+APP.Hospital.openOverview = function () {
+  document.getElementById('hospitalOverviewBody').innerHTML =
+    APP.Hospital.buildOverviewHTML(APP.Board.state.hospitals, APP.Board.state.patients, APP.Board.state.masked);
   document.getElementById('hospitalOverviewModal').classList.remove('hidden');
 };
 
 // ─── 傷患詳情（照片＋傷情）：從總覽點傷患開啟 ──────────────────────────
-APP.Hospital.openPatientDetail = function (p) {
+// opts 可選填 { masked, session }：操作看板／患者卡片等既有呼叫點不帶 opts，
+// 沿用 APP.Board.state.masked + APP.Auth.getSession()；獨立的「醫院總覽（唯讀）」
+// 頁面沒有 APP.Board.state（不會跑 board.js 的輪詢），需要明確帶入自己的遮蔽狀態與登入資訊。
+APP.Hospital.openPatientDetail = function (p, opts) {
+  opts = opts || {};
+  var masked = ('masked' in opts) ? opts.masked : APP.Board.state.masked;
+
   document.getElementById('patientDetailTitle').textContent =
     p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' + (p.tagNumber ? '　貼紙:' + p.tagNumber : '');
 
   var photoBlock = document.getElementById('patientDetailPhotoBlock');
   var body = document.getElementById('patientDetailBody');
 
-  if (APP.Board.state.masked) {
+  if (masked) {
     photoBlock.innerHTML = '';
     body.innerHTML = '<div class="empty-hint">姓名、照片、傷情等機敏資料目前處於遮蔽狀態，請先在登入畫面輸入本案件的共用驗證碼。</div>';
     document.getElementById('patientDetailModal').classList.remove('hidden');
@@ -380,7 +385,7 @@ APP.Hospital.openPatientDetail = function (p) {
     return;
   }
 
-  var session = APP.Auth.getSession();
+  var session = opts.session || APP.Auth.getSession();
   APP.Api.get('getPatientPhoto', {
     incidentId: session.incidentId, patientId: p.triageId, passcode: session.passcode,
   }).then(function (res) {
@@ -393,3 +398,15 @@ APP.Hospital.openPatientDetail = function (p) {
     photoBlock.innerHTML = '<div class="empty-hint">網路錯誤，照片讀取失敗。</div>';
   });
 };
+
+// patientDetailModal 的關閉鈕在操作看板與獨立的「醫院總覽（唯讀）」頁面都會用到，
+// 兩者只有一個會呼叫 APP.Hospital.init()（操作看板才會），所以這裡獨立、無條件地在
+// 頁面載入時就綁好，不依賴使用者走哪一個登入路徑。
+document.addEventListener('DOMContentLoaded', function () {
+  var closeBtn = document.getElementById('patientDetailCloseBtn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function () {
+      document.getElementById('patientDetailModal').classList.add('hidden');
+    });
+  }
+});

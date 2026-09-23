@@ -50,7 +50,29 @@
       <button id="createIncidentBtn" class="w-full py-2 rounded bg-emerald-600 text-white font-bold">建立並登入</button>
       <div class="text-xs" style="color:#047857;">建立後，請把驗證碼告知其他要操作本案件的人員。</div>
     </div>
+
+    <div class="rounded-lg p-3 space-y-2" style="background:#ede9fe;">
+      <div class="font-bold text-sm" style="color:#5b21b6;">🏥 只看醫院總覽（唯讀，不會誤觸檢傷/後送操作）</div>
+      <select id="hospitalViewIncidentSelect"></select>
+      <input type="text" id="hospitalViewPasscode" placeholder="案件共用驗證碼">
+      <button id="hospitalViewLoginBtn" class="w-full py-2 rounded text-white font-bold" style="background:#7c3aed;">查看醫院總覽</button>
+      <div class="text-xs" style="color:#5b21b6;">適合給非操作人員（例如支援單位）查看各院收治狀況，不會出現任何派遣按鈕。</div>
+    </div>
   </div>
+</div>
+
+<!-- ══════════════════ 醫院總覽（唯讀）獨立畫面：從登入畫面「只看醫院總覽」進入 ══════════════════ -->
+<div id="hospitalViewScreen" class="hidden min-h-screen flex flex-col">
+  <header class="bg-slate-800 text-white p-3 flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <div class="font-bold text-lg" id="hospitalViewIncidentLabel">—</div>
+      <div class="text-xs text-slate-300">🏥 醫院總覽（唯讀，無操作功能）</div>
+    </div>
+    <button id="hospitalViewBackBtn" class="px-3 py-1 rounded bg-slate-600 text-sm">登出</button>
+  </header>
+  <main class="p-4" style="max-width:900px; margin:0 auto; width:100%;">
+    <div id="hospitalViewBody"></div>
+  </main>
 </div>
 
 <!-- ══════════════════ 主看板畫面 ══════════════════ -->
@@ -381,6 +403,7 @@
 <script src="js/patientform.js"></script>
 <script src="js/camera_mosaic.js"></script>
 <script src="js/hospital.js"></script>
+<script src="js/hospitalview.js"></script>
 <script src="js/handover.js"></script>
 <script src="js/auth.js"></script>
 

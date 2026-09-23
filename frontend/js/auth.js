@@ -6,6 +6,7 @@ var MASK_KEY = 'dams_masked_v1';
 APP.Auth.init = function () {
   APP.Auth.bindLoginForm();
   APP.Auth.bindCreateForm();
+  APP.Auth.bindHospitalViewForm();
   APP.Auth.bindTopButtons();
 
   // 登入畫面沒有輪詢機制，跑馬燈訊息只在頁面載入時讀一次；
@@ -15,10 +16,13 @@ APP.Auth.init = function () {
   }).catch(function () {});
 
   var saved = APP.Auth.getSession();
-  if (saved) {
+  if (saved && saved.mode === 'hospitalView') {
+    APP.Auth.enterHospitalView(saved);
+  } else if (saved) {
     APP.Auth.enterBoard(saved);
   } else {
     APP.Auth.loadIncidentList();
+    APP.Auth.loadHospitalViewIncidentList();
   }
 };
 
@@ -68,6 +72,27 @@ APP.Auth.loadIncidentList = function () {
   });
 };
 
+APP.Auth.loadHospitalViewIncidentList = function () {
+  var select = document.getElementById('hospitalViewIncidentSelect');
+  if (!select) return;
+  select.innerHTML = '<option>載入中...</option>';
+  APP.Api.get('getIncidentList', {}).then(function (res) {
+    select.innerHTML = '';
+    if (res.status === 'success' && res.data.length > 0) {
+      res.data.forEach(function (inc) {
+        var opt = document.createElement('option');
+        opt.value = inc.incidentId;
+        opt.textContent = inc.displayName;
+        select.appendChild(opt);
+      });
+    } else {
+      select.innerHTML = '<option value="">目前沒有進行中的案件</option>';
+    }
+  }).catch(function () {
+    select.innerHTML = '<option value="">讀取案件清單失敗，請檢查網路或 BASE_URL 設定</option>';
+  });
+};
+
 APP.Auth.bindLoginForm = function () {
   var btn = document.getElementById('loginBtn');
   if (!btn) return;
@@ -83,9 +108,32 @@ APP.Auth.bindLoginForm = function () {
       incidentId: incidentId, passcode: passcode, operatorName: operatorName,
     }).then(function (res) {
       if (res.status !== 'success') { APP.UI.alert(res.message || '登入失敗'); return; }
-      var session = { incidentId: incidentId, passcode: passcode, operatorName: operatorName };
+      var session = { incidentId: incidentId, passcode: passcode, operatorName: operatorName, mode: 'board' };
       APP.Auth.saveSession(session);
       APP.Auth.enterBoard(session);
+    }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+  });
+};
+
+// 「只看醫院總覽」：同樣要輸入案件共用驗證碼（跟正式登入用同一支 verifyIncidentLogin
+// 驗證），但驗證通過後導向獨立的唯讀頁面，不是操作看板，避免誤觸檢傷/派遣操作。
+APP.Auth.bindHospitalViewForm = function () {
+  var btn = document.getElementById('hospitalViewLoginBtn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var incidentId = document.getElementById('hospitalViewIncidentSelect').value;
+    var passcode = document.getElementById('hospitalViewPasscode').value.trim();
+    var operatorName = document.getElementById('loginOperatorName').value.trim();
+    if (!incidentId) { APP.UI.alert('請選擇案件。'); return; }
+    if (!passcode) { APP.UI.alert('請輸入案件共用驗證碼。'); return; }
+
+    APP.Api.post('verifyIncidentLogin', {
+      incidentId: incidentId, passcode: passcode, operatorName: operatorName || '（醫院總覽-唯讀）',
+    }).then(function (res) {
+      if (res.status !== 'success') { APP.UI.alert(res.message || '驗證碼錯誤'); return; }
+      var session = { incidentId: incidentId, passcode: passcode, operatorName: operatorName, mode: 'hospitalView' };
+      APP.Auth.saveSession(session);
+      APP.Auth.enterHospitalView(session);
     }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
   });
 };
@@ -106,7 +154,7 @@ APP.Auth.bindCreateForm = function () {
       incidentName: name, passcode: passcode, creatorName: operatorName, adminPassword: adminPassword,
     }).then(function (res) {
       if (res.status !== 'success') { APP.UI.alert(res.message || '建立案件失敗'); return; }
-      var session = { incidentId: res.incidentId, passcode: passcode, operatorName: operatorName };
+      var session = { incidentId: res.incidentId, passcode: passcode, operatorName: operatorName, mode: 'board' };
       APP.Auth.saveSession(session);
       APP.Auth.enterBoard(session);
     }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
@@ -115,6 +163,7 @@ APP.Auth.bindCreateForm = function () {
 
 APP.Auth.enterBoard = function (session) {
   document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('hospitalViewScreen').classList.add('hidden');
   document.getElementById('boardScreen').classList.remove('hidden');
   document.getElementById('incidentNameLabel').textContent = session.incidentId;
   document.getElementById('operatorLabel').textContent = '操作人員：' + session.operatorName;
@@ -124,6 +173,15 @@ APP.Auth.enterBoard = function (session) {
   APP.Hospital.init();
   APP.Handover.init();
   APP.Board.start();
+};
+
+// 獨立的「醫院總覽（唯讀）」頁面：不呼叫 APP.DragDrop/PatientForm/Hospital.init()，
+// 完全不掛操作看板那一整套的拖曳、建立、派遣按鈕與事件，只跑 APP.HospitalView。
+APP.Auth.enterHospitalView = function (session) {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('boardScreen').classList.add('hidden');
+  document.getElementById('hospitalViewScreen').classList.remove('hidden');
+  APP.HospitalView.start(session);
 };
 
 APP.Auth.updateMaskButton = function () {
