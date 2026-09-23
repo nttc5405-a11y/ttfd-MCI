@@ -101,11 +101,18 @@ APP.Board.buildPatientCard = function (p) {
   div.innerHTML =
     '<div style="display:flex; justify-content:space-between; align-items:flex-start;">' +
     '<div style="font-weight:700">' + p.triageId + (p.tagNumber ? ' / 貼紙' + p.tagNumber : '') + '</div>' +
+    '<div>' +
+    '<button class="detail-btn" title="查看照片/傷情">🔍</button>' +
     '<button class="retriage-btn" title="重新檢傷分類">🔄</button>' +
+    '</div>' +
     '</div>' +
     '<div style="font-size:14px">' + (COLOR_LABEL[p.color] || p.color) + '色</div>' +
     nameLine;
   div.addEventListener('click', function () { APP.Board.togglePatientSelection(p.triageId); });
+  div.querySelector('.detail-btn').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    APP.Hospital.openPatientDetail(p);
+  });
   div.querySelector('.retriage-btn').addEventListener('click', function (ev) {
     ev.stopPropagation();
     APP.PatientForm.openRetriage(p);

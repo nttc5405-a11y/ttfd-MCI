@@ -136,7 +136,33 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
       row.appendChild(label);
 
       var btnGroup = document.createElement('div');
-      btnGroup.style.cssText = 'display:flex;gap:6px;';
+      btnGroup.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+
+      // 在車上（不論已出勤還是已到院）都能隨時查看照片/傷情、或重新檢傷分類，
+      // 不用等到卸下病患那一刻才能確認/更新——傷情在送醫途中隨時可能變化。
+      var viewBtn = document.createElement('button');
+      viewBtn.textContent = '🔍 查看';
+      viewBtn.style.cssText = 'padding:6px 10px;background:#e2e8f0;color:#1a2233;border:none;border-radius:6px;font-size:12px;';
+      viewBtn.addEventListener('click', function () { APP.Hospital.openPatientDetail(p); });
+      btnGroup.appendChild(viewBtn);
+
+      var retriageBtn = document.createElement('button');
+      retriageBtn.textContent = '🔄 重新檢傷';
+      retriageBtn.style.cssText = 'padding:6px 10px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:12px;';
+      retriageBtn.addEventListener('click', function () {
+        APP.DragDrop.closeAmbulanceDetail();
+        APP.PatientForm.openRetriage(p, function (updatedPatient) {
+          // 先把剛確認的新顏色套進看板快取，重新打開的救護車詳情才會立刻顯示最新顏色，
+          // 不用等下一次3秒自動刷新。
+          if (updatedPatient) {
+            var idx = APP.Board.state.patients.findIndex(function (x) { return x.triageId === updatedPatient.triageId; });
+            if (idx !== -1) APP.Board.state.patients[idx] = updatedPatient;
+          }
+          APP.Board.refresh();
+          APP.DragDrop.openAmbulanceDetail(ambulance);
+        });
+      });
+      btnGroup.appendChild(retriageBtn);
 
       if (ambulance.status === 'AT_HOSPITAL') {
         // 已到院：正常完成交接用「卸下病患」（保留送達紀錄，只是把人從車上清單移掉）；
