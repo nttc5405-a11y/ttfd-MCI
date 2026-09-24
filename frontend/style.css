@@ -54,11 +54,11 @@ header {
 .patient-card.selected {
   outline-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.25), 0 1px 3px rgba(0,0,0,.12);
 }
-.retriage-btn {
+.retriage-btn, .detail-btn, .edit-btn {
   background: none; border: none; font-size: 16px; line-height: 1; padding: 2px 4px;
   cursor: pointer; border-radius: 4px;
 }
-.retriage-btn:active { background: rgba(0,0,0,.08); }
+.retriage-btn:active, .detail-btn:active, .edit-btn:active { background: rgba(0,0,0,.08); }
 
 #selectionHint {
   background: #dbeafe; border-bottom: 2px solid #2563eb; padding: 8px 12px;

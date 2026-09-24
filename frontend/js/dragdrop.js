@@ -146,6 +146,18 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
       viewBtn.addEventListener('click', function () { APP.Hospital.openPatientDetail(p); });
       btnGroup.appendChild(viewBtn);
 
+      var editBtn = document.createElement('button');
+      editBtn.textContent = '✏️ 編輯資料';
+      editBtn.style.cssText = 'padding:6px 10px;background:#e2e8f0;color:#1a2233;border:none;border-radius:6px;font-size:12px;';
+      editBtn.addEventListener('click', function () {
+        APP.DragDrop.closeAmbulanceDetail();
+        APP.PatientForm.openEdit(p, function () {
+          APP.Board.refresh();
+          APP.DragDrop.openAmbulanceDetail(ambulance);
+        });
+      });
+      btnGroup.appendChild(editBtn);
+
       var retriageBtn = document.createElement('button');
       retriageBtn.textContent = '🔄 重新檢傷';
       retriageBtn.style.cssText = 'padding:6px 10px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:12px;';

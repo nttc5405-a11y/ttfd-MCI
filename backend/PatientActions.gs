@@ -63,6 +63,38 @@ function generateNextTriageId(sheet) {
   return 'P-' + ('000' + next).slice(-3);
 }
 
+// 更正傷患基本資料（姓名/性別/年齡/現場貼紙編號/備註，選填重新拍照）。
+// 刻意跟 retriagePatient 分開：檢傷顏色分類走「重新檢傷分類」，會累積 colorHistory 歷程、
+// 需要留下可稽核的演變軌跡；這裡只是更正建檔當下打錯/漏填的資料，不動顏色、不記歷程。
+function updatePatientInfo(payload) {
+  const incidentId = sanitizeSheetName(payload.incidentId);
+  const res = getIncidentSheetOrError(incidentId);
+  if (res.error) return res.error;
+  const sheet = res.sheet;
+
+  const found = findBlockRowByKey(sheet, BLOCK.PATIENT, 0, payload.patientId);
+  if (!found) return { status: 'error', code: 'PATIENT_NOT_FOUND', message: '找不到此傷患。' };
+
+  const p = patientRowToObject(found.rowValues);
+  p.tagNumber = payload.tagNumber || '';
+  p.name = payload.name || '';
+  p.gender = payload.gender || '';
+  p.age = payload.age || '';
+  p.note = payload.note || '';
+
+  if (payload.photoBase64) {
+    const saved = savePhotoToDrive(incidentId, p.triageId, payload.photoBase64);
+    if (saved.error) return saved.error;
+    p.photoFileId = saved.fileId;
+  }
+
+  updateBlockRow(sheet, BLOCK.PATIENT, found.rowIndex, patientObjectToRow(p));
+  appendAuditLog(sheet, payload.operatorName || '', 'UPDATE_PATIENT_INFO', p.triageId,
+    p.triageId + ' 資料已更正', {});
+
+  return { status: 'success', data: p };
+}
+
 function retriagePatient(payload) {
   const incidentId = sanitizeSheetName(payload.incidentId);
   const res = getIncidentSheetOrError(incidentId);

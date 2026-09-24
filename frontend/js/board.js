@@ -103,6 +103,7 @@ APP.Board.buildPatientCard = function (p) {
     '<div style="font-weight:700">' + p.triageId + (p.tagNumber ? ' / 貼紙' + p.tagNumber : '') + '</div>' +
     '<div>' +
     '<button class="detail-btn" title="查看照片/傷情">🔍</button>' +
+    '<button class="edit-btn" title="編輯資料">✏️</button>' +
     '<button class="retriage-btn" title="重新檢傷分類">🔄</button>' +
     '</div>' +
     '</div>' +
@@ -112,6 +113,10 @@ APP.Board.buildPatientCard = function (p) {
   div.querySelector('.detail-btn').addEventListener('click', function (ev) {
     ev.stopPropagation();
     APP.Hospital.openPatientDetail(p);
+  });
+  div.querySelector('.edit-btn').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    APP.PatientForm.openEdit(p);
   });
   div.querySelector('.retriage-btn').addEventListener('click', function (ev) {
     ev.stopPropagation();

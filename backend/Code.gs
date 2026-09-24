@@ -128,6 +128,8 @@ function doPost(e) {
         return respond(createPatient(payload));
       case 'retriagePatient':
         return respond(retriagePatient(payload));
+      case 'updatePatientInfo':
+        return respond(updatePatientInfo(payload));
       case 'movePatientToAmbulance':
         return respond(movePatientToAmbulance(payload));
       case 'removePatientFromAmbulance':

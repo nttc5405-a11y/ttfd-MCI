@@ -1,9 +1,10 @@
 APP.PatientForm = APP.PatientForm || {};
-APP.PatientForm.mode = 'create'; // create | retriage
+APP.PatientForm.mode = 'create'; // create | retriage | edit
 APP.PatientForm.editingPatient = null;
 APP.PatientForm.selectedColor = null;
 APP.PatientForm.selectedGender = null;
 APP.PatientForm.afterRetriageCallback = null; // 卸下病患/交接前的傷情再確認會用到
+APP.PatientForm.afterEditCallback = null; // 從救護車詳情頁編輯完後，重新打開該詳情頁會用到
 
 var GENDER_LABEL = { MALE: '男', FEMALE: '女', UNKNOWN: '不明' };
 
@@ -50,8 +51,11 @@ APP.PatientForm.openCreate = function () {
   document.getElementById('patientNameInput').value = '';
   document.getElementById('patientAgeInput').value = '';
   document.getElementById('patientNoteInput').value = '';
+  document.getElementById('colorPickerBlock').classList.remove('hidden');
   document.getElementById('extraFieldsBlock').classList.remove('hidden');
+  document.getElementById('startAssessmentBlock').classList.remove('hidden');
   document.getElementById('cameraBlock').classList.remove('hidden');
+  document.getElementById('patientFormSubmitBtn').textContent = '送出';
   APP.PatientForm.highlightColor(null);
   APP.PatientForm.highlightGender(null);
   APP.PatientForm.resetStartAssessment();
@@ -69,10 +73,41 @@ APP.PatientForm.openRetriage = function (patient, afterSave, customTitle) {
   APP.PatientForm.afterRetriageCallback = afterSave || null;
   APP.PatientForm.selectedColor = patient.color;
   document.getElementById('patientFormTitle').textContent = customTitle || ('重新檢傷分類：' + patient.triageId);
+  document.getElementById('colorPickerBlock').classList.remove('hidden');
   document.getElementById('extraFieldsBlock').classList.add('hidden');
   document.getElementById('cameraBlock').classList.add('hidden');
+  document.getElementById('patientFormSubmitBtn').textContent = '送出';
   APP.PatientForm.highlightColor(patient.color);
   document.getElementById('patientFormModal').classList.remove('hidden');
+};
+
+// 更正基本資料（姓名/性別/年齡/貼紙編號/備註，選填重新拍照）——刻意不碰檢傷顏色，
+// 顏色的修改一律走「重新檢傷分類」（會留下歷程），避免這裡跟那邊互相打架、記錄不一致。
+var GENDER_KEY_BY_LABEL = { '男': 'MALE', '女': 'FEMALE', '不明': 'UNKNOWN' };
+
+APP.PatientForm.openEdit = function (patient, afterSave) {
+  APP.PatientForm.mode = 'edit';
+  APP.PatientForm.editingPatient = patient;
+  APP.PatientForm.afterEditCallback = afterSave || null;
+  APP.PatientForm.selectedColor = patient.color; // 不會被送出，但保留原值避免其他共用邏輯誤判成「未選顏色」
+  APP.PatientForm.selectedGender = GENDER_KEY_BY_LABEL[patient.gender] || null;
+
+  document.getElementById('patientFormTitle').textContent = '編輯傷患資料：' + patient.triageId;
+  document.getElementById('tagNumberInput').value = patient.tagNumber || '';
+  document.getElementById('patientNameInput').value = patient.name || '';
+  document.getElementById('patientAgeInput').value = patient.age || '';
+  document.getElementById('patientNoteInput').value = patient.note || '';
+
+  document.getElementById('colorPickerBlock').classList.add('hidden');
+  document.getElementById('extraFieldsBlock').classList.remove('hidden');
+  document.getElementById('startAssessmentBlock').classList.add('hidden');
+  document.getElementById('cameraBlock').classList.remove('hidden');
+  document.getElementById('patientFormSubmitBtn').textContent = '儲存修改';
+  APP.PatientForm.highlightGender(APP.PatientForm.selectedGender);
+  document.getElementById('patientFormModal').classList.remove('hidden');
+
+  APP.Camera.reset();
+  document.getElementById('cameraHint').textContent = '如不需更換照片，忽略這一區直接按「儲存修改」即可，會保留原照片。';
 };
 
 APP.PatientForm.selectColor = function (c) {
@@ -139,10 +174,11 @@ APP.PatientForm.getStartSummaryText = function () {
 
 APP.PatientForm.close = function () {
   document.getElementById('patientFormModal').classList.add('hidden');
-  if (APP.PatientForm.mode === 'create') APP.Camera.stop();
-  // 使用者自己按取消／叉掉視窗時，後續動作（卸下病患、交接）要整個中止，
-  // 不能留著上一次設定的callback，等下次無關的重新檢傷卻被誤觸發。
+  if (APP.PatientForm.mode === 'create' || APP.PatientForm.mode === 'edit') APP.Camera.stop();
+  // 使用者自己按取消／叉掉視窗時，後續動作（卸下病患、交接、重新打開救護車詳情）要整個中止，
+  // 不能留著上一次設定的callback，等下次無關的操作卻被誤觸發。
   APP.PatientForm.afterRetriageCallback = null;
+  APP.PatientForm.afterEditCallback = null;
 };
 
 APP.PatientForm.submit = function () {
@@ -156,6 +192,29 @@ APP.PatientForm.submit = function () {
       if (res.status !== 'success') { APP.UI.alert(res.message || '操作失敗'); return; }
       var callback = APP.PatientForm.afterRetriageCallback;
       APP.PatientForm.afterRetriageCallback = null;
+      APP.PatientForm.close();
+      APP.Board.refresh();
+      if (callback) callback(res.data);
+    }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+    return;
+  }
+
+  if (APP.PatientForm.mode === 'edit') {
+    var editPayload = APP.DragDrop.withSession({
+      patientId: APP.PatientForm.editingPatient.triageId,
+      tagNumber: document.getElementById('tagNumberInput').value.trim(),
+      name: document.getElementById('patientNameInput').value.trim(),
+      gender: APP.PatientForm.selectedGender ? GENDER_LABEL[APP.PatientForm.selectedGender] : '',
+      age: document.getElementById('patientAgeInput').value.trim(),
+      note: document.getElementById('patientNoteInput').value.trim(),
+    });
+    var editPhoto = APP.Camera.getPhotoBase64();
+    if (editPhoto) editPayload.photoBase64 = editPhoto;
+
+    APP.Api.post('updatePatientInfo', editPayload).then(function (res) {
+      if (res.status !== 'success') { APP.UI.alert(res.message || '更新失敗'); return; }
+      var callback = APP.PatientForm.afterEditCallback;
+      APP.PatientForm.afterEditCallback = null;
       APP.PatientForm.close();
       APP.Board.refresh();
       if (callback) callback(res.data);
