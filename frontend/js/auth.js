@@ -9,10 +9,21 @@ APP.Auth.init = function () {
   APP.Auth.bindHospitalViewForm();
   APP.Auth.bindTopButtons();
 
-  // 登入畫面沒有輪詢機制，跑馬燈訊息只在頁面載入時讀一次；
-  // 進入看板後改由 board.js 每次刷新一併帶回最新內容。
+  // 登入畫面沒有輪詢機制，跑馬燈訊息／簡報連結只在頁面載入時讀一次；
+  // 進入看板後跑馬燈改由 board.js 每次刷新一併帶回最新內容（簡報連結只有登入畫面用得到）。
   APP.Api.get('getMarqueeMessage', {}).then(function (res) {
-    if (res.status === 'success') APP.UI.setMarquee(res.message);
+    if (res.status !== 'success') return;
+    APP.UI.setMarquee(res.message);
+    var link = document.getElementById('presentationLinkAnchor');
+    var block = document.getElementById('presentationLinkBlock');
+    if (link && block) {
+      if (res.presentationLink) {
+        link.href = res.presentationLink;
+        block.classList.remove('hidden');
+      } else {
+        block.classList.add('hidden');
+      }
+    }
   }).catch(function () {});
 
   var saved = APP.Auth.getSession();

@@ -43,6 +43,7 @@ function ensureSystemSettingsSheet(doc) {
     ['需要管理員密碼-編輯救護車主檔', '啟用', '設為「停用」則新增/編輯救護車主檔不需要密碼'],
     ['需要管理員密碼-編輯醫院主檔', '啟用', '設為「停用」則新增/編輯醫院主檔不需要密碼'],
     ['跑馬燈訊息', '', '留空則不顯示跑馬燈；填文字後，登入畫面與看板畫面上方都會跑馬燈顯示這段文字（改完立即生效，不用重新部署）'],
+    ['簡報連結', 'https://claude.ai/artifact/L5nwQ7Ca5y9j8F7sfQP5mz', '登入畫面「查看系統介紹簡報」連結的網址；留空則登入畫面不顯示這個連結（改完立即生效，不用重新部署）'],
   ];
   const existingRows = sheet.getDataRange().getValues();
   const existingKeys = {};
@@ -68,8 +69,13 @@ function getSystemSetting(key) {
 
 // 給登入畫面用（此時還沒登入任何案件，讀不到 getBoardState）。
 // 看板畫面則是直接從 getBoardState 回傳的 marqueeMessage 取得，不用另外呼叫這支。
+// 順便把「簡報連結」也一起帶回去，登入畫面只需要一次呼叫，不用為了一個連結另外開一支 action。
 function getMarqueeMessage() {
-  return { status: 'success', message: getSystemSetting('跑馬燈訊息') };
+  return {
+    status: 'success',
+    message: getSystemSetting('跑馬燈訊息'),
+    presentationLink: getSystemSetting('簡報連結'),
+  };
 }
 
 function ensureAmbulanceMasterSheet(doc) {
