@@ -43,7 +43,7 @@ APP.Hospital.init = function () {
   document.getElementById('ambulanceAddCancelBtn').addEventListener('click', APP.Hospital.closeAddAmbulanceModal);
   document.getElementById('ambulanceAddSubmitBtn').addEventListener('click', APP.Hospital.submitAddSelectedAmbulances);
   document.getElementById('ambulanceSelectAll').addEventListener('change', function (ev) {
-    document.querySelectorAll('.ambulance-add-checkbox').forEach(function (cb) { cb.checked = ev.target.checked; });
+    document.querySelectorAll('.ambulance-add-checkbox:not(:disabled)').forEach(function (cb) { cb.checked = ev.target.checked; });
   });
 
   document.getElementById('showCreateAmbulanceBtn').addEventListener('click', function () {
@@ -195,6 +195,14 @@ APP.Hospital.openAddAmbulanceModal = function () {
   list.innerHTML = '載入中...';
   document.getElementById('ambulanceSelectAll').checked = false;
   document.getElementById('ambulanceAddModal').classList.remove('hidden');
+  // 同一輛車（同一列主檔）被重複勾選加入同一案件時，因為代碼碰撞的自動改名規則
+  // 是為了「不同單位剛好同代碼」設計的，分不出「這其實是同一輛車又加了一次」，
+  // 結果會產生兩張看起來一樣、但實際是不同紀錄的救護車卡片（例如兩張都叫「魔鏡巴士」）。
+  // 用「單位＋代碼」（跟後端算 displayName 用的公式一樣）比對本案件目前已有的救護車，
+  // 已加入的直接鎖住勾選框，從 UI 這一層就擋掉，不用等使用者自己發現重複。
+  var alreadyIn = {};
+  (APP.Board.state.ambulances || []).forEach(function (a) { alreadyIn[a.displayName] = true; });
+
   APP.Api.get('getAmbulanceMaster', {}).then(function (res) {
     list.innerHTML = '';
     if (res.status !== 'success' || res.data.length === 0) {
@@ -205,14 +213,18 @@ APP.Hospital.openAddAmbulanceModal = function () {
       var row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #e2e8f0;padding:8px 4px;';
 
+      var displayName = v.unitName + ' ' + v.vehicleCode;
+      var isAlready = !!alreadyIn[displayName];
+
       var label = document.createElement('label');
-      label.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;';
+      label.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;' + (isAlready ? 'color:#94a3b8;' : 'cursor:pointer;');
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.className = 'ambulance-add-checkbox';
       cb.value = v.masterRow; // 用試算表列號而不是車輛代碼，代碼在不同單位間常常重複
+      if (isAlready) cb.disabled = true;
       var span = document.createElement('span');
-      span.textContent = v.unitName + ' ' + v.vehicleCode + '（' + v.unitType + '）';
+      span.textContent = v.unitName + ' ' + v.vehicleCode + '（' + v.unitType + '）' + (isAlready ? '　已加入本案件' : '');
       label.appendChild(cb);
       label.appendChild(span);
       row.appendChild(label);
