@@ -40,8 +40,22 @@ APP.HospitalView.refresh = function () {
 };
 
 APP.HospitalView.render = function () {
+  var patients = APP.HospitalView.state.patients || [];
+  document.getElementById('hospitalViewSummaryBar').innerHTML = APP.HospitalView.buildSummaryHTML(patients);
   document.getElementById('hospitalViewBody').innerHTML =
-    APP.Hospital.buildOverviewHTML(APP.HospitalView.state.hospitals, APP.HospitalView.state.patients, false);
+    APP.Hospital.buildOverviewHTML(APP.HospitalView.state.hospitals, patients, false);
+};
+
+// 不分區塊（這個頁面沒有患者區/救護車欄位可分），單純統計全案紅黃綠黑各幾人。
+APP.HospitalView.buildSummaryHTML = function (patients) {
+  var counts = { RED: 0, YELLOW: 0, GREEN: 0, BLACK: 0 };
+  patients.forEach(function (p) { if (counts[p.color] !== undefined) counts[p.color]++; });
+  var badges = ['RED', 'YELLOW', 'GREEN', 'BLACK'].map(function (c) {
+    return '<span class="summary-badge" style="background:' + COLOR_DOT[c] + ';">' +
+      (COLOR_LABEL[c] || c) + ' ' + counts[c] + '</span>';
+  }).join('');
+  return '<div class="summary-group summary-total"><span class="summary-group-label">📋 全案傷患總數（共' +
+    patients.length + '）</span>' + badges + '</div>';
 };
 
 document.addEventListener('DOMContentLoaded', function () {
