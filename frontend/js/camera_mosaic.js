@@ -63,6 +63,39 @@ APP.Camera.capture = function () {
     '如需保護隱私，可用手指在臉部拖曳方框後按「套用馬賽克」；這是選用步驟，不套用也能直接送出。';
 };
 
+// 從相簿／檔案選一張現有照片，縮到跟拍照一樣的最大寬度後畫進同一個 canvas，
+// 之後的馬賽克、送出流程跟拍照完全一樣。
+APP.Camera.loadFromFile = function (file) {
+  if (!file) return;
+  var url = URL.createObjectURL(file);
+  var img = new Image();
+  img.onload = function () {
+    var canvas = document.getElementById('photoCanvas');
+    var maxW = 900;
+    var scale = Math.min(1, maxW / img.naturalWidth);
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+
+    document.getElementById('cameraVideo').classList.add('hidden');
+    canvas.classList.remove('hidden');
+    APP.Camera.stop();
+    APP.Camera.hasPhoto = true;
+    APP.Camera.mosaicApplied = false;
+    APP.Camera.selection = null;
+    APP.Camera.originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    document.getElementById('cameraHint').textContent =
+      '已選取照片。如需保護隱私，可用手指在臉部拖曳方框後按「套用馬賽克」；這是選用步驟，不套用也能直接送出。';
+  };
+  img.onerror = function () {
+    URL.revokeObjectURL(url);
+    APP.UI.alert('這個檔案無法當作圖片開啟，請改選其他照片。');
+  };
+  img.src = url;
+};
+
 APP.Camera.bindSelection = function () {
   var canvas = document.getElementById('photoCanvas');
   var dragging = false;
@@ -164,6 +197,15 @@ APP.Camera.getPhotoBase64 = function () {
 document.addEventListener('DOMContentLoaded', function () {
   var captureBtn = document.getElementById('captureBtn');
   if (captureBtn) captureBtn.addEventListener('click', APP.Camera.capture);
+  var pickBtn = document.getElementById('pickPhotoBtn');
+  var fileInput = document.getElementById('photoFileInput');
+  if (pickBtn && fileInput) {
+    pickBtn.addEventListener('click', function () { fileInput.click(); });
+    fileInput.addEventListener('change', function () {
+      APP.Camera.loadFromFile(fileInput.files[0]);
+      fileInput.value = ''; // 清空，才能連續選同一張檔案
+    });
+  }
   var mosaicBtn = document.getElementById('applyMosaicBtn');
   if (mosaicBtn) mosaicBtn.addEventListener('click', APP.Camera.applyMosaic);
   var retakeBtn = document.getElementById('retakeBtn');

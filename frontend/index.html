@@ -168,10 +168,14 @@
       <video id="cameraVideo" autoplay playsinline muted></video>
       <canvas id="photoCanvas" class="hidden"></canvas>
       <div class="text-xs text-slate-500" id="cameraHint"></div>
+      <input type="file" id="photoFileInput" accept="image/*" class="hidden">
       <div class="flex gap-2">
         <button type="button" id="captureBtn" class="flex-1 py-2 rounded bg-slate-700 text-white text-sm">📷 拍照</button>
+        <button type="button" id="pickPhotoBtn" class="flex-1 py-2 rounded bg-sky-600 text-white text-sm">🖼️ 從相簿選取</button>
+      </div>
+      <div class="flex gap-2">
         <button type="button" id="applyMosaicBtn" class="flex-1 py-2 rounded bg-amber-600 text-white text-sm">套用馬賽克</button>
-        <button type="button" id="retakeBtn" class="flex-1 py-2 rounded bg-slate-200 text-sm">重拍</button>
+        <button type="button" id="retakeBtn" class="flex-1 py-2 rounded bg-slate-200 text-sm">重拍／重選</button>
       </div>
     </div>
 
