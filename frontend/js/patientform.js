@@ -27,6 +27,7 @@ APP.PatientForm.init = function () {
   document.getElementById('addPatientBtn').addEventListener('click', APP.PatientForm.openCreate);
   document.getElementById('patientFormCancelBtn').addEventListener('click', APP.PatientForm.close);
   document.getElementById('patientFormSubmitBtn').addEventListener('click', APP.PatientForm.submit);
+  document.getElementById('deletePatientBtn').addEventListener('click', APP.PatientForm.deleteCurrentPatient);
   ['RED', 'YELLOW', 'GREEN', 'BLACK'].forEach(function (c) {
     var el = document.getElementById('colorBtn_' + c);
     if (el) el.addEventListener('click', function () { APP.PatientForm.selectColor(c); });
@@ -56,6 +57,7 @@ APP.PatientForm.openCreate = function () {
   document.getElementById('startAssessmentBlock').classList.remove('hidden');
   document.getElementById('cameraBlock').classList.remove('hidden');
   document.getElementById('patientFormSubmitBtn').textContent = '送出';
+  document.getElementById('deletePatientBtn').classList.add('hidden');
   APP.PatientForm.highlightColor(null);
   APP.PatientForm.highlightGender(null);
   APP.PatientForm.resetStartAssessment();
@@ -77,6 +79,7 @@ APP.PatientForm.openRetriage = function (patient, afterSave, customTitle) {
   document.getElementById('extraFieldsBlock').classList.add('hidden');
   document.getElementById('cameraBlock').classList.add('hidden');
   document.getElementById('patientFormSubmitBtn').textContent = '送出';
+  document.getElementById('deletePatientBtn').classList.add('hidden');
   APP.PatientForm.highlightColor(patient.color);
   document.getElementById('patientFormModal').classList.remove('hidden');
 };
@@ -103,10 +106,36 @@ APP.PatientForm.openEdit = function (patient, afterSave) {
   document.getElementById('startAssessmentBlock').classList.add('hidden');
   document.getElementById('cameraBlock').classList.remove('hidden');
   document.getElementById('patientFormSubmitBtn').textContent = '儲存修改';
+  document.getElementById('deletePatientBtn').classList.remove('hidden');
   APP.PatientForm.highlightGender(APP.PatientForm.selectedGender);
   document.getElementById('patientFormModal').classList.remove('hidden');
 
   APP.Camera.reset('如不需更換照片，忽略這一區即可，會保留原照片。');
+};
+
+// 刪除建檔錯誤的傷患——只在「編輯資料」模式才看得到這顆按鈕。真的會整筆刪除、
+// 無法復原，所以要先按確認，再手動輸入本案件的共用驗證碼才會真的送出，
+// 不會只因為裝置已經登入過就直接刪掉（跟結案、開關車牌驗證一樣的保護層級）。
+APP.PatientForm.deleteCurrentPatient = function () {
+  var patient = APP.PatientForm.editingPatient;
+  if (!patient) return;
+  APP.UI.confirm(
+    '確定要刪除「' + patient.triageId + '」嗎？這是用來更正建檔錯誤（例如重複建立）的功能，刪除後資料無法復原。',
+    function () {
+      var passcode = window.prompt('請輸入本案件的共用驗證碼以確認刪除：');
+      if (passcode === null) return; // 使用者按取消
+      if (!passcode.trim()) { APP.UI.alert('請輸入驗證碼。'); return; }
+
+      APP.Api.post('deletePatient', APP.DragDrop.withSession({
+        patientId: patient.triageId, passcode: passcode.trim(),
+      })).then(function (res) {
+        if (res.status !== 'success') { APP.UI.alert(res.message || '刪除失敗'); return; }
+        APP.PatientForm.afterEditCallback = null; // 傷患已經不存在了，不要再嘗試重新打開救護車詳情等後續動作
+        APP.PatientForm.close();
+        APP.Board.refresh();
+      }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+    }
+  );
 };
 
 APP.PatientForm.selectColor = function (c) {

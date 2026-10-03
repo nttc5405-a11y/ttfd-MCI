@@ -172,6 +172,23 @@ function updatePlateCheckSetting(payload) {
   return { status: 'error', code: 'INCIDENT_NOT_FOUND', message: '找不到此案件。' };
 }
 
+// 嚴格只認「主驗證碼」，不像 isPasscodeValidForIncident（BoardQuery.gs）那樣
+// 連醫院總覽專用碼也認——這支是給「會真的刪除/改動操作資料」的動作做二次確認用，
+// 權限要卡在知道主驗證碼的操作人員，唯讀碼不應該能通過這一關。
+function isMainPasscodeValidForIncident(incidentId, passcode) {
+  const doc = getDoc();
+  const indexSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.INCIDENT_INDEX);
+  if (!indexSheet) return false;
+  const data = indexSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(incidentId)) {
+      const storedCode = String(data[i][4] || '');
+      return storedCode !== '' && storedCode === String(passcode || '');
+    }
+  }
+  return false;
+}
+
 function isProtectedSheetName(name) {
   return name === CONFIG.MASTER_SHEETS.AMBULANCE ||
     name === CONFIG.MASTER_SHEETS.HOSPITAL ||

@@ -52,6 +52,54 @@ function createPatient(payload) {
   return { status: 'success', data: patient };
 }
 
+// 刪除建檔錯誤的傷患（整筆移除，不是退回未指派）。這是真的會把資料整筆刪掉、
+// 無法復原的操作，所以要求輸入本案件的「共用驗證碼」做二次確認（跟結案、
+// 開關車牌驗證一樣的保護層級），不是誰都能手滑誤刪。
+// 傷患若已指派在救護車上，一併從該車的車上清單移除；若已經送達醫院，
+// 一併把該院的已送達人數扣回來，避免留下對不上的孤兒資料與錯誤統計。
+function deletePatient(payload) {
+  const incidentId = sanitizeSheetName(payload.incidentId);
+  if (!incidentId) return { status: 'error', code: 'INVALID_INCIDENT_ID', message: '案件編號無效。' };
+
+  if (!isMainPasscodeValidForIncident(incidentId, payload.passcode)) {
+    return { status: 'error', code: 'INVALID_PASSCODE', message: '驗證碼錯誤，無法刪除。' };
+  }
+
+  const res = getIncidentSheetOrError(incidentId);
+  if (res.error) return res.error;
+  const sheet = res.sheet;
+
+  const found = findBlockRowByKey(sheet, BLOCK.PATIENT, 0, payload.patientId);
+  if (!found) return { status: 'error', code: 'PATIENT_NOT_FOUND', message: '找不到此傷患。' };
+  const patient = patientRowToObject(found.rowValues);
+
+  if (patient.ambulanceCode) {
+    const ambFound = findBlockRowByKey(sheet, BLOCK.AMBULANCE, 0, patient.ambulanceCode);
+    if (ambFound) {
+      const ambulance = ambulanceRowToObject(ambFound.rowValues);
+      ambulance.patientIds = ambulance.patientIds.filter(function (pid) { return pid !== patient.triageId; });
+      ambulance.updatedAt = new Date();
+      updateBlockRow(sheet, BLOCK.AMBULANCE, ambFound.rowIndex, ambulanceObjectToRow(ambulance));
+    }
+  }
+
+  if (patient.status === 'AT_HOSPITAL' && patient.hospitalId) {
+    const hospFound = findBlockRowByKey(sheet, BLOCK.HOSPITAL, 0, patient.hospitalId);
+    if (hospFound) {
+      const hospital = hospitalRowToObject(hospFound.rowValues);
+      hospital.deliveredCount = Math.max(0, (Number(hospital.deliveredCount) || 0) - 1);
+      hospital.updatedAt = new Date();
+      updateBlockRow(sheet, BLOCK.HOSPITAL, hospFound.rowIndex, hospitalObjectToRow(hospital));
+    }
+  }
+
+  deleteBlockRow(sheet, BLOCK.PATIENT, found.rowIndex);
+  appendAuditLog(sheet, payload.operatorName || '', 'DELETE_PATIENT', patient.triageId,
+    patient.triageId + '（建檔錯誤）已刪除', {});
+
+  return { status: 'success' };
+}
+
 function generateNextTriageId(sheet) {
   const rows = readBlockRows(sheet, BLOCK.PATIENT);
   let maxNum = 0;

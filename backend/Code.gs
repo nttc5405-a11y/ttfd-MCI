@@ -128,6 +128,8 @@ function doPost(e) {
         return respond(updatePlateCheckSetting(payload));
       case 'createPatient':
         return respond(createPatient(payload));
+      case 'deletePatient':
+        return respond(deletePatient(payload));
       case 'retriagePatient':
         return respond(retriagePatient(payload));
       case 'updatePatientInfo':
