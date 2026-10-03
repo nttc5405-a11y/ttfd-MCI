@@ -14,9 +14,11 @@ APP.UI.promptAdminPassword = function () {
   return window.prompt('請輸入管理員密碼（系統若未啟用，留空即可）：');
 };
 
-// 跑馬燈文字——內容在試算表「系統設定」分頁的「跑馬燈訊息」設定，留空就不顯示。
-// 依文字長度調整捲動速度，避免太短的訊息捲得太快、太長的訊息捲得太慢。
-APP.UI.setMarquee = function (text) {
+// 跑馬燈文字——內容與速度都在試算表「系統設定」分頁設定（「跑馬燈訊息」留空就不顯示；
+// 「跑馬燈速度」是捲動一輪的秒數，數字越大越慢），改完立即生效，不用重新部署。
+// speedSeconds 沒填或填了無效值時，退回預設18秒；並夾在 3~120 秒之間，避免填到
+// 0 或負值讓動畫整個卡死、或填到超大值讓捲動視覺上跟完全沒動沒兩樣。
+APP.UI.setMarquee = function (text, speedSeconds) {
   var bar = document.getElementById('marqueeBar');
   var span = document.getElementById('marqueeText');
   if (!bar || !span) return;
@@ -27,7 +29,12 @@ APP.UI.setMarquee = function (text) {
   span.textContent = text;
   bar.classList.remove('hidden');
   var track = bar.querySelector('.marquee-track');
-  if (track) track.style.animationDuration = Math.max(10, text.length * 0.35) + 's';
+  if (track) {
+    var seconds = Number(speedSeconds);
+    if (!seconds || seconds <= 0) seconds = 18;
+    seconds = Math.max(3, Math.min(120, seconds));
+    track.style.animationDuration = seconds + 's';
+  }
 };
 
 // 資料寫入中的全螢幕提示——蓋住畫面＋文字，讓操作者知道系統正在處理

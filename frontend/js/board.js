@@ -35,7 +35,7 @@ APP.Board.refresh = function () {
     APP.Board.state.masked = res.masked;
     APP.Board.state.plateCheckEnabled = res.plateCheckEnabled !== false;
     APP.Board.render();
-    APP.UI.setMarquee(res.marqueeMessage);
+    APP.UI.setMarquee(res.marqueeMessage, res.marqueeSpeedSeconds);
   }).catch(function (err) {
     console.error('讀取看板時發生網路錯誤', err);
   });

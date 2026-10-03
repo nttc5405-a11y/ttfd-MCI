@@ -109,5 +109,6 @@ function getBoardState(rawIncidentId, passcode) {
     masked: masked,
     plateCheckEnabled: isPlateCheckEnabledForIncident(incidentId),
     marqueeMessage: getSystemSetting('跑馬燈訊息'),
+    marqueeSpeedSeconds: getSystemSetting('跑馬燈速度'),
   };
 }

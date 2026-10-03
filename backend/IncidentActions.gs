@@ -43,6 +43,7 @@ function ensureSystemSettingsSheet(doc) {
     ['需要管理員密碼-編輯救護車主檔', '啟用', '設為「停用」則新增/編輯救護車主檔不需要密碼'],
     ['需要管理員密碼-編輯醫院主檔', '啟用', '設為「停用」則新增/編輯醫院主檔不需要密碼'],
     ['跑馬燈訊息', '', '留空則不顯示跑馬燈；填文字後，登入畫面與看板畫面上方都會跑馬燈顯示這段文字（改完立即生效，不用重新部署）'],
+    ['跑馬燈速度', '18', '跑馬燈捲動一輪所需的秒數，數字越大捲動越慢，預設18；建議3~60之間（改完立即生效，不用重新部署）'],
     ['簡報連結', 'https://claude.ai/artifact/L5nwQ7Ca5y9j8F7sfQP5mz', '登入畫面「查看系統介紹簡報」連結的網址；留空則登入畫面不顯示這個連結（改完立即生效，不用重新部署）'],
   ];
   const existingRows = sheet.getDataRange().getValues();
@@ -74,6 +75,7 @@ function getMarqueeMessage() {
   return {
     status: 'success',
     message: getSystemSetting('跑馬燈訊息'),
+    marqueeSpeedSeconds: getSystemSetting('跑馬燈速度'),
     presentationLink: getSystemSetting('簡報連結'),
   };
 }

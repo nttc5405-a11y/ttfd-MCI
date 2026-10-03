@@ -13,7 +13,7 @@ APP.Auth.init = function () {
   // 進入看板後跑馬燈改由 board.js 每次刷新一併帶回最新內容（簡報連結只有登入畫面用得到）。
   APP.Api.get('getMarqueeMessage', {}).then(function (res) {
     if (res.status !== 'success') return;
-    APP.UI.setMarquee(res.message);
+    APP.UI.setMarquee(res.message, res.marqueeSpeedSeconds);
     var link = document.getElementById('presentationLinkAnchor');
     var block = document.getElementById('presentationLinkBlock');
     if (link && block) {

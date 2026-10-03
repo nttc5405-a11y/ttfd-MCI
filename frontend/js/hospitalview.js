@@ -33,7 +33,7 @@ APP.HospitalView.refresh = function () {
     }
     APP.HospitalView.state = res.data;
     APP.HospitalView.render();
-    APP.UI.setMarquee(res.marqueeMessage);
+    APP.UI.setMarquee(res.marqueeMessage, res.marqueeSpeedSeconds);
   }).catch(function (err) {
     console.error('讀取醫院總覽時發生網路錯誤', err);
   });
