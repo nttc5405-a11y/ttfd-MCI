@@ -126,8 +126,10 @@ APP.Auth.bindLoginForm = function () {
   });
 };
 
-// 「只看醫院總覽」：同樣要輸入案件共用驗證碼（跟正式登入用同一支 verifyIncidentLogin
-// 驗證），但驗證通過後導向獨立的唯讀頁面，不是操作看板，避免誤觸檢傷/派遣操作。
+// 「只看醫院總覽」：輸入「醫院總覽專用驗證碼」（建立案件時系統會自動產生一組，
+// 跟操作用的主驗證碼不同）即可進入，驗證走獨立的 verifyHospitalViewLogin——
+// 這組專用碼無法拿去一般登入表單使用，所以只把這組碼交給非操作人員，
+// 他們就真的進不了會誤觸檢傷/派遣的操作畫面（操作人員知道主驗證碼的話，兩邊都能登入）。
 APP.Auth.bindHospitalViewForm = function () {
   var btn = document.getElementById('hospitalViewLoginBtn');
   if (!btn) return;
@@ -136,9 +138,9 @@ APP.Auth.bindHospitalViewForm = function () {
     var passcode = document.getElementById('hospitalViewPasscode').value.trim();
     var operatorName = document.getElementById('loginOperatorName').value.trim();
     if (!incidentId) { APP.UI.alert('請選擇案件。'); return; }
-    if (!passcode) { APP.UI.alert('請輸入案件共用驗證碼。'); return; }
+    if (!passcode) { APP.UI.alert('請輸入驗證碼。'); return; }
 
-    APP.Api.post('verifyIncidentLogin', {
+    APP.Api.post('verifyHospitalViewLogin', {
       incidentId: incidentId, passcode: passcode, operatorName: operatorName || '（醫院總覽-唯讀）',
     }).then(function (res) {
       if (res.status !== 'success') { APP.UI.alert(res.message || '驗證碼錯誤'); return; }
@@ -165,6 +167,14 @@ APP.Auth.bindCreateForm = function () {
       incidentName: name, passcode: passcode, creatorName: operatorName, adminPassword: adminPassword,
     }).then(function (res) {
       if (res.status !== 'success') { APP.UI.alert(res.message || '建立案件失敗'); return; }
+      if (res.hospitalViewPasscode) {
+        APP.UI.alert(
+          '案件建立成功！\n\n' +
+          '系統另外自動產生了一組「醫院總覽專用驗證碼」：' + res.hospitalViewPasscode + '\n' +
+          '這組碼可以另外提供給非操作人員（例如支援單位、關心傷患的人員）查看醫院收治狀況，' +
+          '他們不會因此能進入操作畫面。之後也可以到「案件清單」分頁「醫院總覽驗證碼」欄查詢或更換。'
+        );
+      }
       var session = { incidentId: res.incidentId, passcode: passcode, operatorName: operatorName, mode: 'board' };
       APP.Auth.saveSession(session);
       APP.Auth.enterBoard(session);

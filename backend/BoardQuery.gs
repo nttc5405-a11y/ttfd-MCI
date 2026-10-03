@@ -47,6 +47,9 @@ function getHospitalMaster() {
   return { status: 'success', data: list };
 }
 
+// 主驗證碼或「醫院總覽專用驗證碼」任一組都算通過——這支只負責「姓名/照片等機敏資料
+// 要不要遮蔽」，不是操作權限的守門（操作權限的守門在 verifyIncidentLogin，只認主碼）。
+// 持有專用驗證碼的人從醫院總覽唯讀頁面進來時，一樣需要看得到姓名才有意義。
 function isPasscodeValidForIncident(incidentId, passcode) {
   if (!passcode) return false;
   const doc = getDoc();
@@ -55,7 +58,9 @@ function isPasscodeValidForIncident(incidentId, passcode) {
   const data = indexSheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === String(incidentId)) {
-      return String(data[i][4] || '') === String(passcode);
+      const mainCode = String(data[i][4] || '');
+      const viewCode = String(data[i][8] || '');
+      return (mainCode !== '' && String(passcode) === mainCode) || (viewCode !== '' && String(passcode) === viewCode);
     }
   }
   return false;

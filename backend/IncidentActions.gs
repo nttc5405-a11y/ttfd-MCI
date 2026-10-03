@@ -101,12 +101,23 @@ function ensureHospitalMasterSheet(doc) {
 }
 
 function ensureIncidentIndexSheet(doc) {
+  const headers = ['案件ID', '顯示名稱', '建立時間', '建立人', '共用驗證碼', '狀態', '結案時間', '車牌驗證', '醫院總覽驗證碼'];
   let sheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.INCIDENT_INDEX);
-  if (sheet) return sheet;
-  sheet = doc.insertSheet(CONFIG.MASTER_SHEETS.INCIDENT_INDEX);
-  const headers = ['案件ID', '顯示名稱', '建立時間', '建立人', '共用驗證碼', '狀態', '結案時間', '車牌驗證'];
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold').setBackground('#d9ead3');
-  sheet.setFrozenRows(1);
+  if (!sheet) {
+    sheet = doc.insertSheet(CONFIG.MASTER_SHEETS.INCIDENT_INDEX);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold').setBackground('#d9ead3');
+    sheet.setFrozenRows(1);
+    return sheet;
+  }
+  // 既有（舊版）分頁可能缺少後來才新增的欄位標題（例如升級前建立的試算表），
+  // 逐欄補齊缺的標題，不動任何既有資料列——重複執行「①初始化系統」也安全。
+  ensureSheetHasColumns(sheet, headers.length);
+  const currentHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  headers.forEach(function (h, idx) {
+    if (!currentHeaders[idx]) {
+      sheet.getRange(1, idx + 1).setValue(h).setFontWeight('bold').setBackground('#d9ead3');
+    }
+  });
   return sheet;
 }
 
@@ -188,6 +199,34 @@ function verifyIncidentLogin(payload) {
   return { status: 'error', code: 'INCIDENT_NOT_FOUND', message: '找不到此案件。' };
 }
 
+// 「只看醫院總覽」入口的登入：故意跟 verifyIncidentLogin 分開，接受「主驗證碼」或
+// 「醫院總覽專用驗證碼」任一組都算通過——操作人員知道主碼，想用這個唯讀畫面查看一下
+// 也沒問題；但反過來，只拿到「醫院總覽專用驗證碼」的人（例如支援單位、非操作人員），
+// 無法用這組碼登入一般操作畫面（verifyIncidentLogin 只認主驗證碼），
+// 才能真正做到「唯讀入口」跟「可操作入口」用不同通行碼區分，不是同一組碼換個入口而已。
+// 專用驗證碼留空時，等於沒有另外設定，僅能用主驗證碼進來（沿用舊案件原本的行為）。
+function verifyHospitalViewLogin(payload) {
+  const incidentId = sanitizeSheetName(payload.incidentId);
+  if (!incidentId) return { status: 'error', code: 'INVALID_INCIDENT_ID', message: '案件編號無效。' };
+
+  const doc = getDoc();
+  const indexSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.INCIDENT_INDEX);
+  if (!indexSheet) return { status: 'error', code: 'NO_INDEX', message: '找不到案件清單分頁，請先執行系統初始化。' };
+
+  const data = indexSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === incidentId) {
+      const mainCode = String(data[i][4] || '');
+      const viewCode = String(data[i][8] || '');
+      const provided = String(payload.passcode || '');
+      const ok = (mainCode !== '' && provided === mainCode) || (viewCode !== '' && provided === viewCode);
+      if (ok) return { status: 'success', incidentId: incidentId };
+      return { status: 'error', code: 'INVALID_PASSCODE', message: '驗證碼錯誤。' };
+    }
+  }
+  return { status: 'error', code: 'INCIDENT_NOT_FOUND', message: '找不到此案件。' };
+}
+
 // 建立新案件：新增一個分頁並寫入四個區塊的表頭
 function createIncident(payload) {
   if (!isAdminPasswordValid(payload.adminPassword, '建立案件')) {
@@ -216,7 +255,12 @@ function createIncident(payload) {
   sheet.setFrozenRows(1);
 
   const indexSheet = doc.getSheetByName(CONFIG.MASTER_SHEETS.INCIDENT_INDEX) || ensureIncidentIndexSheet(doc);
-  indexSheet.appendRow([incidentId, rawName, new Date(), payload.creatorName || '', payload.passcode, '進行中', '']);
+  // 自動產生一組獨立的「醫院總覽專用驗證碼」，跟主驗證碼分開，建立人可以把這組碼
+  // 另外給不需要操作、只需要查看醫院收治狀況的人（詳見 verifyHospitalViewLogin 的說明）。
+  const hospitalViewPasscode = ('000' + Math.floor(Math.random() * 10000)).slice(-4);
+  indexSheet.appendRow([
+    incidentId, rawName, new Date(), payload.creatorName || '', payload.passcode, '進行中', '', '', hospitalViewPasscode,
+  ]);
 
   appendAuditLog(sheet, payload.creatorName || '', 'CREATE_INCIDENT', incidentId, '建立案件：' + rawName, {});
 
@@ -224,7 +268,10 @@ function createIncident(payload) {
   // 時查不到這個分頁的機率（另有 getIncidentSheetOrError 的重試機制做第二層保障）
   SpreadsheetApp.flush();
 
-  return { status: 'success', incidentId: incidentId, displayName: rawName };
+  return {
+    status: 'success', incidentId: incidentId, displayName: rawName,
+    hospitalViewPasscode: hospitalViewPasscode,
+  };
 }
 
 // 結案：需要驗證碼；MVP 版本不做審核流程，單純標記狀態

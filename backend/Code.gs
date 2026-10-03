@@ -118,6 +118,8 @@ function doPost(e) {
     switch (payload.action) {
       case 'verifyIncidentLogin':
         return respond(verifyIncidentLogin(payload));
+      case 'verifyHospitalViewLogin':
+        return respond(verifyHospitalViewLogin(payload));
       case 'createIncident':
         return respond(createIncident(payload));
       case 'closeIncident':
