@@ -33,6 +33,43 @@ function toggleHospitalStatus(payload) {
   return { status: 'success', data: hospital };
 }
 
+// 從「本案件」移除一間醫院（不影響醫院主檔，下次還能再加回來）。
+// 已經送達過傷患，或目前還有救護車停在這間醫院（還沒返回現場），都拒絕移除——
+// 這些是已經發生、有紀錄意義的資料，移除會讓「送達醫院ID」或「目前醫院ID」
+// 變成查無對應醫院的孤兒資料，後續醫院總覽、交接單都會對不起來。
+function removeHospitalFromIncident(payload) {
+  const incidentId = sanitizeSheetName(payload.incidentId);
+  const res = getIncidentSheetOrError(incidentId);
+  if (res.error) return res.error;
+  const sheet = res.sheet;
+
+  const found = findBlockRowByKey(sheet, BLOCK.HOSPITAL, 0, payload.hospitalId);
+  if (!found) return { status: 'error', code: 'HOSPITAL_NOT_FOUND', message: '找不到此醫院。' };
+  const hospital = hospitalRowToObject(found.rowValues);
+
+  if (Number(hospital.deliveredCount) > 0) {
+    return {
+      status: 'error', code: 'HAS_DELIVERIES',
+      message: '這間醫院已送達過 ' + hospital.deliveredCount + ' 位傷患，為保留紀錄無法從本案件移除。',
+    };
+  }
+
+  const ambulanceRows = readBlockRows(sheet, BLOCK.AMBULANCE);
+  const stillThere = ambulanceRows.some(function (row) {
+    const a = ambulanceRowToObject(row);
+    return a.status === 'AT_HOSPITAL' && String(a.hospitalId) === String(payload.hospitalId);
+  });
+  if (stillThere) {
+    return { status: 'error', code: 'AMBULANCE_STILL_THERE', message: '目前還有救護車停在這間醫院，請先讓車輛返回現場，才能移除這間醫院。' };
+  }
+
+  deleteBlockRow(sheet, BLOCK.HOSPITAL, found.rowIndex);
+  appendAuditLog(sheet, payload.operatorName || '', 'REMOVE_HOSPITAL', payload.hospitalId,
+    hospital.name + ' 已從本案件移除', {});
+
+  return { status: 'success' };
+}
+
 // 把主檔中的醫院加入本案件（案件醫院區新增一列，狀態預設「可收治」）
 function addHospitalToIncident(payload) {
   const incidentId = sanitizeSheetName(payload.incidentId);

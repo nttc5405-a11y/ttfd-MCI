@@ -292,6 +292,33 @@ function createAmbulanceMasterAndAdd(payload) {
   return addRes;
 }
 
+// 救護車離場：從「本案件」移除這輛車（不影響救護車主檔，下次還能再加回來）。
+// 車上還有傷患時拒絕——這些傷患會瞬間失去「目前救護車代碼」卻沒有被妥善轉移，
+// 操作人員應該先用「移除傷患」或「卸下病患」把人清空，再移除這輛車。
+function removeAmbulanceFromIncident(payload) {
+  const incidentId = sanitizeSheetName(payload.incidentId);
+  const res = getIncidentSheetOrError(incidentId);
+  if (res.error) return res.error;
+  const sheet = res.sheet;
+
+  const found = findBlockRowByKey(sheet, BLOCK.AMBULANCE, 0, payload.ambulanceId);
+  if (!found) return { status: 'error', code: 'AMBULANCE_NOT_FOUND', message: '找不到此救護車。' };
+  const ambulance = ambulanceRowToObject(found.rowValues);
+
+  if (ambulance.patientIds.length > 0) {
+    return {
+      status: 'error', code: 'PATIENTS_ABOARD',
+      message: '車上仍有 ' + ambulance.patientIds.length + ' 位傷患，請先卸下／移除車上傷患，才能把這輛車從本案件移除。',
+    };
+  }
+
+  deleteBlockRow(sheet, BLOCK.AMBULANCE, found.rowIndex);
+  appendAuditLog(sheet, payload.operatorName || '', 'REMOVE_AMBULANCE', payload.ambulanceId,
+    ambulance.displayName + ' 已從本案件移除（離場）', {});
+
+  return { status: 'success' };
+}
+
 // 修正救護車主檔資料（單位類別/隊名/車牌後4碼/隨車人員）。注意：已經加入某案件的
 // 救護車卡片顯示名稱是加入當下複製的一份快照，修改主檔不會回頭更新已存在的案件紀錄。
 // 一樣是全縣共用主檔，需要管理員密碼（若系統有啟用）。

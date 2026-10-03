@@ -120,6 +120,26 @@ function updateBlockRow(sheet, block, rowIndex, rowValues) {
   }
 }
 
+// 從某個區塊裡刪除一列（例如救護車離場、醫院誤加入要移除），把下面的列都往上搬一列、
+// 最後一列清空。不能直接用 sheet.deleteRow()——那會把「同一個試算表列號」其他區塊
+// （傷患/救護車/醫院/稽核）剛好排在那一列的資料也一起搬走；四個區塊各自是獨立的
+// 清單，只是共用同一張分頁、用不同欄位區隔，列號對齊純屬巧合，不能假設彼此相關。
+function deleteBlockRow(sheet, block, rowIndex) {
+  const rows = readBlockRows(sheet, block);
+  const idx = rowIndex - 2;
+  if (idx < 0 || idx >= rows.length) return;
+
+  const lastSheetRow = rows.length + 1; // rows.length 筆資料佔據 row2 ~ row(length+1)
+  if (rowIndex < lastSheetRow) {
+    const belowHeight = lastSheetRow - rowIndex;
+    const belowValues = sheet.getRange(rowIndex + 1, block.anchorCol, belowHeight, block.width).getValues();
+    sheet.getRange(rowIndex, block.anchorCol, belowHeight, block.width).setValues(belowValues);
+  }
+  sheet.getRange(lastSheetRow, block.anchorCol, 1, block.width).clearContent();
+
+  rows.splice(idx, 1);
+}
+
 function appendAuditLog(sheet, operatorName, actionType, targetId, detail, payload) {
   const rows = readBlockRows(sheet, BLOCK.AUDIT);
   const row = rows.length + 2;

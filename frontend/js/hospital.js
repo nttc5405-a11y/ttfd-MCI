@@ -171,6 +171,25 @@ APP.Hospital.submitAddSelectedHospitals = function () {
 APP.Hospital.openStatusPicker = function (h) {
   APP.Hospital.currentHospital = h;
   document.getElementById('hospitalStatusTitle').textContent = h.name + ' — 收治狀態（僅供提示，不會阻擋派遣）';
+
+  // 移除本案件醫院：已經送達過傷患、或目前還有救護車停在這間醫院，都不給移除
+  // （避免「送達醫院ID」變成查無對應醫院的孤兒資料），前端先判一次、後端也會再驗一次。
+  var stillThere = (APP.Board.state.ambulances || []).some(function (a) {
+    return a.status === 'AT_HOSPITAL' && a.hospitalId === h.hospitalId;
+  });
+  var removable = (Number(h.deliveredCount) || 0) === 0 && !stillThere;
+  var removeBtn = document.getElementById('removeHospitalBtn');
+  removeBtn.classList.toggle('hidden', !removable);
+  removeBtn.onclick = function () {
+    APP.UI.confirm('確定要把「' + h.name + '」從本案件移除嗎？（主檔不會受影響，之後還能再加回來）', function () {
+      APP.Api.post('removeHospitalFromIncident', APP.DragDrop.withSession({ hospitalId: h.hospitalId })).then(function (res) {
+        if (res.status !== 'success') { APP.UI.alert(res.message || '移除失敗'); return; }
+        APP.Hospital.closeStatusPicker();
+        APP.Board.refresh();
+      }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+    });
+  };
+
   document.getElementById('hospitalStatusModal').classList.remove('hidden');
 };
 

@@ -218,9 +218,22 @@ APP.DragDrop.openAmbulanceDetail = function (ambulance) {
   var standbyBtn = document.getElementById('returnStandbyBtn');
   var handoverBtn = document.getElementById('openHandoverBtn');
   var batchDischargeBtn = document.getElementById('batchDischargeBtn');
+  var removeAmbulanceBtn = document.getElementById('removeAmbulanceBtn');
 
   sendBtn.classList.toggle('hidden', ambulance.status === 'AT_HOSPITAL');
   standbyBtn.classList.toggle('hidden', ambulance.status === 'STANDBY');
+
+  // 車輛離場：車上有傷患時不給移除，避免傷患資料瞬間失去救護車歸屬卻沒有妥善轉移。
+  removeAmbulanceBtn.classList.toggle('hidden', patients.length > 0);
+  removeAmbulanceBtn.onclick = function () {
+    APP.UI.confirm('確定要把「' + ambulance.displayName + '」從本案件移除嗎？（主檔不會受影響，之後還能再加回來）', function () {
+      APP.Api.post('removeAmbulanceFromIncident', APP.DragDrop.withSession({ ambulanceId: ambulance.vehicleCode })).then(function (res) {
+        if (res.status !== 'success') { APP.UI.alert(res.message || '移除失敗'); return; }
+        APP.DragDrop.closeAmbulanceDetail();
+        APP.Board.refresh();
+      }).catch(function () { APP.UI.alert('網路錯誤，請重試。'); });
+    });
+  };
 
   if (ambulance.status === 'AT_HOSPITAL') {
     hint.textContent = '已抵達 ' + ambulance.hospitalId + '，傷患已自動標記送達。' +

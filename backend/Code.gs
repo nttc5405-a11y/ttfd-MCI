@@ -142,8 +142,12 @@ function doPost(e) {
         return respond(moveAmbulanceToHospital(payload));
       case 'moveAmbulanceToStandby':
         return respond(moveAmbulanceToStandby(payload));
+      case 'removeAmbulanceFromIncident':
+        return respond(removeAmbulanceFromIncident(payload));
       case 'toggleHospitalStatus':
         return respond(toggleHospitalStatus(payload));
+      case 'removeHospitalFromIncident':
+        return respond(removeHospitalFromIncident(payload));
       case 'addAmbulanceToIncident':
         return respond(addAmbulanceToIncident(payload));
       case 'addAmbulancesToIncident':
