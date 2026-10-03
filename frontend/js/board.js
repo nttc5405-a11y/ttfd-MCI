@@ -42,10 +42,49 @@ APP.Board.refresh = function () {
 };
 
 APP.Board.render = function () {
+  APP.Board.renderSummary();
   APP.Board.renderPatients();
   APP.Board.renderAmbulances();
   APP.Board.renderHospitals();
   APP.Board.renderSelectionHint();
+};
+
+// 頂部黃色統計列：依「目前所在區塊」（患者區/救護車上/已送達醫院）分組，
+// 各組再依紅黃綠黑分別計數，最後加一組不分區的全案總計。
+APP.Board.renderSummary = function () {
+  var bar = document.getElementById('triageSummaryBar');
+  if (!bar) return;
+
+  var patients = APP.Board.state.patients || [];
+  var areas = [
+    { statuses: ['ON_SCENE'], label: '🧍 患者區' },
+    { statuses: ['ON_AMBULANCE'], label: '🚑 救護車上' },
+    { statuses: ['AT_HOSPITAL'], label: '🏥 已送達醫院' },
+  ];
+
+  function countByColor(list) {
+    var c = { RED: 0, YELLOW: 0, GREEN: 0, BLACK: 0 };
+    list.forEach(function (p) { if (c[p.color] !== undefined) c[p.color]++; });
+    return c;
+  }
+
+  function badgesHtml(counts) {
+    return ['RED', 'YELLOW', 'GREEN', 'BLACK'].map(function (c) {
+      return '<span class="summary-badge" style="background:' + COLOR_DOT[c] + ';">' +
+        (COLOR_LABEL[c] || c) + ' ' + counts[c] + '</span>';
+    }).join('');
+  }
+
+  var groupsHtml = areas.map(function (area) {
+    var list = patients.filter(function (p) { return area.statuses.indexOf(p.status) !== -1; });
+    return '<div class="summary-group"><span class="summary-group-label">' +
+      area.label + '（共' + list.length + '）</span>' + badgesHtml(countByColor(list)) + '</div>';
+  }).join('');
+
+  var totalHtml = '<div class="summary-group summary-total"><span class="summary-group-label">📋 全案總計（共' +
+    patients.length + '）</span>' + badgesHtml(countByColor(patients)) + '</div>';
+
+  bar.innerHTML = groupsHtml + totalHtml;
 };
 
 // 點選式指派：點一下傷患卡片＝選取／再點一下＝取消選取；選取後點救護車卡片＝完成指派
