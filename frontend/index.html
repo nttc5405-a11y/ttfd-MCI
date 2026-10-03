@@ -165,18 +165,31 @@
     </div>
 
     <div id="cameraBlock" class="mb-4 space-y-2">
-      <video id="cameraVideo" autoplay playsinline muted></video>
-      <canvas id="photoCanvas" class="hidden"></canvas>
-      <div class="text-xs text-slate-500" id="cameraHint"></div>
-      <input type="file" id="photoFileInput" accept="image/*" class="hidden">
-      <div class="flex gap-2">
-        <button type="button" id="captureBtn" class="flex-1 py-2 rounded bg-slate-700 text-white text-sm">📷 拍照</button>
-        <button type="button" id="pickPhotoBtn" class="flex-1 py-2 rounded bg-sky-600 text-white text-sm">🖼️ 從相簿選取</button>
+      <div id="photoIdleBlock">
+        <button type="button" id="addPhotoBtn" class="w-full py-2 rounded bg-slate-700 text-white text-sm">📷 新增照片（選用）</button>
       </div>
-      <div class="flex gap-2">
+
+      <div id="photoChooseBlock" class="hidden flex gap-2">
+        <button type="button" id="chooseCameraBtn" class="flex-1 py-2 rounded bg-slate-700 text-white text-sm">📷 拍照</button>
+        <button type="button" id="chooseAlbumBtn" class="flex-1 py-2 rounded bg-sky-600 text-white text-sm">🖼️ 從相簿選取</button>
+      </div>
+
+      <div id="photoCameraLiveBlock" class="hidden space-y-2">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <div class="flex gap-2">
+          <button type="button" id="captureBtn" class="flex-1 py-2 rounded bg-slate-700 text-white text-sm">📸 拍下</button>
+          <button type="button" id="cancelCameraBtn" class="flex-1 py-2 rounded bg-slate-200 text-sm">取消</button>
+        </div>
+      </div>
+
+      <canvas id="photoCanvas" class="hidden"></canvas>
+      <div id="photoResultActions" class="hidden flex gap-2">
         <button type="button" id="applyMosaicBtn" class="flex-1 py-2 rounded bg-amber-600 text-white text-sm">套用馬賽克</button>
         <button type="button" id="retakeBtn" class="flex-1 py-2 rounded bg-slate-200 text-sm">重拍／重選</button>
       </div>
+
+      <input type="file" id="photoFileInput" accept="image/*" class="hidden">
+      <div class="text-xs text-slate-500" id="cameraHint"></div>
     </div>
 
     <div id="extraFieldsBlock" class="space-y-2 mb-4">

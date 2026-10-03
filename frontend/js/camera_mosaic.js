@@ -1,36 +1,82 @@
 // 拍照 + 手動拖框馬賽克（刻意不用自動人臉辨識：現場光線/角度不穩定會不可靠，
 // 且對非工程師使用者而言，辨識失敗時很難排除問題；手動拖框簡單、所見即所得）
+//
+// 四個狀態，對應四個子區塊的顯示/隱藏（見 index.html 的 #cameraBlock）：
+//   idle     — 只顯示「新增照片」按鈕，不啟動相機（進表單不該自動要求相機權限/耗電）
+//   choosing — 顯示「拍照」／「從相簿選取」兩個按鈕
+//   camera   — 顯示即時相機畫面＋「拍下」／「取消」
+//   captured — 顯示已拍/已選的照片＋馬賽克／重拍按鈕
 APP.Camera = APP.Camera || {};
 APP.Camera.stream = null;
 APP.Camera.hasPhoto = false;
 APP.Camera.mosaicApplied = false;
 APP.Camera.selection = null;
 APP.Camera.originalImageData = null;
+APP.Camera.state = 'idle';
+APP.Camera.idleHintOverride = '';
 
-APP.Camera.reset = function () {
+APP.Camera.render = function () {
+  var s = APP.Camera.state;
+  document.getElementById('photoIdleBlock').classList.toggle('hidden', s !== 'idle');
+  document.getElementById('photoChooseBlock').classList.toggle('hidden', s !== 'choosing');
+  document.getElementById('photoCameraLiveBlock').classList.toggle('hidden', s !== 'camera');
+  document.getElementById('photoCanvas').classList.toggle('hidden', s !== 'captured');
+  document.getElementById('photoResultActions').classList.toggle('hidden', s !== 'captured');
+
+  var hint = document.getElementById('cameraHint');
+  if (s === 'idle') {
+    hint.textContent = APP.Camera.idleHintOverride || '可選擇拍照或從相簿選取傷患照片（選用，不加照片也能送出）。';
+  } else if (s === 'choosing') {
+    hint.textContent = '請選擇要用相機拍照，還是從相簿選取既有照片。';
+  } else if (s === 'camera') {
+    hint.textContent = '相機啟動中，請對準傷患臉部後按「拍下」。';
+  } else if (s === 'captured') {
+    hint.textContent = '如需保護隱私，可用手指在臉部拖曳方框後按「套用馬賽克」；這是選用步驟，不套用也能直接送出。';
+  }
+};
+
+// idleHint（選填）：編輯模式要提醒「不拍就保留原照片」，跟建立模式的預設文字不同。
+APP.Camera.reset = function (idleHint) {
+  APP.Camera.stop();
   APP.Camera.hasPhoto = false;
   APP.Camera.mosaicApplied = false;
   APP.Camera.selection = null;
   APP.Camera.originalImageData = null;
   var canvas = document.getElementById('photoCanvas');
   canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-  canvas.classList.add('hidden');
-  document.getElementById('cameraVideo').classList.remove('hidden');
-  document.getElementById('cameraHint').textContent = '相機啟動中，請對準傷患臉部後按「拍照」。';
+  APP.Camera.idleHintOverride = idleHint || '';
+  APP.Camera.state = 'idle';
+  APP.Camera.render();
+};
+
+APP.Camera.showChoice = function () {
+  APP.Camera.state = 'choosing';
+  APP.Camera.render();
+};
+
+APP.Camera.enterCameraMode = function () {
+  APP.Camera.state = 'camera';
+  APP.Camera.render();
   APP.Camera.start();
+};
+
+APP.Camera.cancelCameraMode = function () {
+  APP.Camera.stop();
+  APP.Camera.state = 'idle';
+  APP.Camera.render();
 };
 
 APP.Camera.start = function () {
   var video = document.getElementById('cameraVideo');
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    document.getElementById('cameraHint').textContent = '此瀏覽器不支援相機功能，可跳過拍照直接建立傷患。';
+    document.getElementById('cameraHint').textContent = '此瀏覽器不支援相機功能，請改用「從相簿選取」。';
     return;
   }
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function (stream) {
     APP.Camera.stream = stream;
     video.srcObject = stream;
   }).catch(function (err) {
-    document.getElementById('cameraHint').textContent = '無法開啟相機：' + (err.message || err.name) + '（可跳過拍照直接建立傷患）';
+    document.getElementById('cameraHint').textContent = '無法開啟相機：' + (err.message || err.name) + '（可改用「從相簿選取」）';
   });
 };
 
@@ -53,14 +99,12 @@ APP.Camera.capture = function () {
   var ctx = canvas.getContext('2d');
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  video.classList.add('hidden');
-  canvas.classList.remove('hidden');
   APP.Camera.stop();
   APP.Camera.hasPhoto = true;
   APP.Camera.mosaicApplied = false;
   APP.Camera.originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  document.getElementById('cameraHint').textContent =
-    '如需保護隱私，可用手指在臉部拖曳方框後按「套用馬賽克」；這是選用步驟，不套用也能直接送出。';
+  APP.Camera.state = 'captured';
+  APP.Camera.render();
 };
 
 // 從相簿／檔案選一張現有照片，縮到跟拍照一樣的最大寬度後畫進同一個 canvas，
@@ -79,15 +123,13 @@ APP.Camera.loadFromFile = function (file) {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     URL.revokeObjectURL(url);
 
-    document.getElementById('cameraVideo').classList.add('hidden');
-    canvas.classList.remove('hidden');
     APP.Camera.stop();
     APP.Camera.hasPhoto = true;
     APP.Camera.mosaicApplied = false;
     APP.Camera.selection = null;
     APP.Camera.originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    document.getElementById('cameraHint').textContent =
-      '已選取照片。如需保護隱私，可用手指在臉部拖曳方框後按「套用馬賽克」；這是選用步驟，不套用也能直接送出。';
+    APP.Camera.state = 'captured';
+    APP.Camera.render();
   };
   img.onerror = function () {
     URL.revokeObjectURL(url);
@@ -195,20 +237,34 @@ APP.Camera.getPhotoBase64 = function () {
 };
 
 document.addEventListener('DOMContentLoaded', function () {
-  var captureBtn = document.getElementById('captureBtn');
-  if (captureBtn) captureBtn.addEventListener('click', APP.Camera.capture);
-  var pickBtn = document.getElementById('pickPhotoBtn');
+  var addPhotoBtn = document.getElementById('addPhotoBtn');
+  if (addPhotoBtn) addPhotoBtn.addEventListener('click', APP.Camera.showChoice);
+
+  var chooseCameraBtn = document.getElementById('chooseCameraBtn');
+  if (chooseCameraBtn) chooseCameraBtn.addEventListener('click', APP.Camera.enterCameraMode);
+
+  var chooseAlbumBtn = document.getElementById('chooseAlbumBtn');
   var fileInput = document.getElementById('photoFileInput');
-  if (pickBtn && fileInput) {
-    pickBtn.addEventListener('click', function () { fileInput.click(); });
+  if (chooseAlbumBtn && fileInput) {
+    chooseAlbumBtn.addEventListener('click', function () { fileInput.click(); });
     fileInput.addEventListener('change', function () {
       APP.Camera.loadFromFile(fileInput.files[0]);
       fileInput.value = ''; // 清空，才能連續選同一張檔案
     });
   }
+
+  var captureBtn = document.getElementById('captureBtn');
+  if (captureBtn) captureBtn.addEventListener('click', APP.Camera.capture);
+
+  var cancelCameraBtn = document.getElementById('cancelCameraBtn');
+  if (cancelCameraBtn) cancelCameraBtn.addEventListener('click', APP.Camera.cancelCameraMode);
+
   var mosaicBtn = document.getElementById('applyMosaicBtn');
   if (mosaicBtn) mosaicBtn.addEventListener('click', APP.Camera.applyMosaic);
+
   var retakeBtn = document.getElementById('retakeBtn');
-  if (retakeBtn) retakeBtn.addEventListener('click', APP.Camera.reset);
+  if (retakeBtn) retakeBtn.addEventListener('click', function () { APP.Camera.reset(); });
+
   APP.Camera.bindSelection();
+  APP.Camera.render();
 });

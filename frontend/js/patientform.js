@@ -106,8 +106,7 @@ APP.PatientForm.openEdit = function (patient, afterSave) {
   APP.PatientForm.highlightGender(APP.PatientForm.selectedGender);
   document.getElementById('patientFormModal').classList.remove('hidden');
 
-  APP.Camera.reset();
-  document.getElementById('cameraHint').textContent = '如不需更換照片，忽略這一區直接按「儲存修改」即可，會保留原照片。';
+  APP.Camera.reset('如不需更換照片，忽略這一區即可，會保留原照片。');
 };
 
 APP.PatientForm.selectColor = function (c) {
