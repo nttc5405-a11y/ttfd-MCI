@@ -62,7 +62,7 @@ APP.PatientForm.openCreate = function () {
   APP.PatientForm.highlightGender(null);
   APP.PatientForm.resetStartAssessment();
   document.getElementById('patientFormModal').classList.remove('hidden');
-  APP.Camera.reset();
+  APP.Camera.reset([]);
 };
 
 // afterSave（選填）：確認/送出後要接著做的事（例如卸下病患前、交接前的傷情再確認），
@@ -110,7 +110,10 @@ APP.PatientForm.openEdit = function (patient, afterSave) {
   APP.PatientForm.highlightGender(APP.PatientForm.selectedGender);
   document.getElementById('patientFormModal').classList.remove('hidden');
 
-  APP.Camera.reset('如不需更換照片，忽略這一區即可，會保留原照片。');
+  var initialPhotos = (patient.photoFileIds || []).map(function (fileId, idx) {
+    return { isExisting: true, existingFileId: fileId, label: '既有照片' + (idx + 1) };
+  });
+  APP.Camera.reset(initialPhotos, '如不需更換照片，忽略這一區即可，會保留原照片。');
 };
 
 // 刪除建檔錯誤的傷患——只在「編輯資料」模式才看得到這顆按鈕。真的會整筆刪除、
@@ -236,8 +239,8 @@ APP.PatientForm.submit = function () {
       age: document.getElementById('patientAgeInput').value.trim(),
       note: document.getElementById('patientNoteInput').value.trim(),
     });
-    var editPhoto = APP.Camera.getPhotoBase64();
-    if (editPhoto) editPayload.photoBase64 = editPhoto;
+    editPayload.keepPhotoFileIds = APP.Camera.getKeepPhotoFileIds();
+    editPayload.newPhotosBase64 = APP.Camera.getNewPhotosBase64();
 
     APP.Api.post('updatePatientInfo', editPayload).then(function (res) {
       if (res.status !== 'success') { APP.UI.alert(res.message || '更新失敗'); return; }
@@ -262,8 +265,7 @@ APP.PatientForm.submit = function () {
     age: document.getElementById('patientAgeInput').value.trim(),
     note: combinedNote,
   });
-  var photo = APP.Camera.getPhotoBase64();
-  if (photo) payload.photoBase64 = photo;
+  payload.photosBase64 = APP.Camera.getNewPhotosBase64();
 
   APP.Api.post('createPatient', payload).then(function (res) {
     if (res.status !== 'success') { APP.UI.alert(res.message || '建立失敗'); return; }

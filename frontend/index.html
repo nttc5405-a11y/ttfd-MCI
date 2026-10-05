@@ -169,8 +169,10 @@
     </div>
 
     <div id="cameraBlock" class="mb-4 space-y-2">
+      <div id="photoThumbStrip" class="flex gap-2 flex-wrap"></div>
+
       <div id="photoIdleBlock">
-        <button type="button" id="addPhotoBtn" class="w-full py-2 rounded bg-slate-700 text-white text-sm">📷 新增照片（選用）</button>
+        <button type="button" id="addPhotoBtn" class="w-full py-2 rounded bg-slate-700 text-white text-sm">📷 新增照片（選用，最多3張）</button>
       </div>
 
       <div id="photoChooseBlock" class="hidden flex gap-2">
@@ -191,6 +193,7 @@
         <button type="button" id="applyMosaicBtn" class="flex-1 py-2 rounded bg-amber-600 text-white text-sm">套用馬賽克</button>
         <button type="button" id="retakeBtn" class="flex-1 py-2 rounded bg-slate-200 text-sm">重拍／重選</button>
       </div>
+      <button type="button" id="confirmAddPhotoBtn" class="hidden w-full py-2 rounded bg-emerald-600 text-white text-sm font-bold">✅ 加入這張照片</button>
 
       <input type="file" id="photoFileInput" accept="image/*" class="hidden">
       <div class="text-xs text-slate-500" id="cameraHint"></div>

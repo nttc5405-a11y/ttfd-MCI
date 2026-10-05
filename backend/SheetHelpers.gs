@@ -13,7 +13,7 @@ const BLOCK = {
 
 const PATIENT_HEADERS = [
   '檢傷編號', '現場貼紙編號', '分類顏色', '分類歷程JSON', '姓名', '性別', '年齡',
-  '建立時間', '檢傷人員', '照片檔案ID', '現況狀態', '目前救護車代碼', '送達醫院ID', '備註',
+  '建立時間', '檢傷人員', '照片檔案ID清單(JSON,最多3張)', '現況狀態', '目前救護車代碼', '送達醫院ID', '備註',
 ];
 
 const AMBULANCE_HEADERS = [
@@ -163,6 +163,20 @@ function safeParseJSON(str, fallback) {
   }
 }
 
+// 照片欄位原本存的是「單一 fileId 純文字」，支援多張照片後改存 JSON 陣列字串。
+// 這支同時相容兩種格式：既有（升級前建立）的傷患資料讀到的還是純文字 fileId，
+// 不會因為升級就突然讀不到照片；新資料一律存 JSON 陣列。
+function parsePhotoFileIds(raw) {
+  if (!raw) return [];
+  const trimmed = String(raw).trim();
+  if (!trimmed) return [];
+  if (trimmed.charAt(0) === '[') {
+    const arr = safeParseJSON(trimmed, []);
+    return Array.isArray(arr) ? arr.filter(Boolean) : [];
+  }
+  return [trimmed]; // 舊格式：純一個 fileId 字串
+}
+
 function patientRowToObject(row) {
   return {
     triageId: row[0],
@@ -174,7 +188,7 @@ function patientRowToObject(row) {
     age: row[6],
     createdAt: row[7],
     triageOfficer: row[8],
-    photoFileId: row[9],
+    photoFileIds: parsePhotoFileIds(row[9]),
     status: row[10],
     ambulanceCode: row[11],
     hospitalId: row[12],
@@ -186,7 +200,7 @@ function patientObjectToRow(p) {
   return [
     p.triageId, p.tagNumber || '', p.color, JSON.stringify(p.colorHistory || []),
     p.name || '', p.gender || '', p.age || '', p.createdAt, p.triageOfficer || '',
-    p.photoFileId || '', p.status, p.ambulanceCode || '', p.hospitalId || '', p.note || '',
+    JSON.stringify(p.photoFileIds || []), p.status, p.ambulanceCode || '', p.hospitalId || '', p.note || '',
   ];
 }
 

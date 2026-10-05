@@ -66,10 +66,11 @@ function savePhotoToDrive(incidentId, triageId, photoBase64) {
   }
 }
 
-// 讀取單一傷患的照片，轉成 data URL 讓前端直接顯示。
+// 讀取單一傷患的某一張照片（一位傷患最多 CONFIG.MAX_PATIENT_PHOTOS 張，
+// photoIndex 是第幾張，0-based，沒給就預設讀第1張），轉成 data URL 讓前端直接顯示。
 // 不開放照片檔案的公開分享連結，一律透過這支API讀取，
 // 驗證碼規則跟看板資料的機敏遮蔽規則一致（驗證碼不對就不給看）。
-function getPatientPhoto(rawIncidentId, patientId, passcode) {
+function getPatientPhoto(rawIncidentId, patientId, passcode, photoIndex) {
   const incidentId = sanitizeSheetName(rawIncidentId);
   if (!incidentId) return { status: 'error', code: 'INVALID_INCIDENT_ID', message: '案件編號無效。' };
 
@@ -84,10 +85,12 @@ function getPatientPhoto(rawIncidentId, patientId, passcode) {
   const found = findBlockRowByKey(sheet, BLOCK.PATIENT, 0, patientId);
   if (!found) return { status: 'error', code: 'PATIENT_NOT_FOUND', message: '找不到此傷患。' };
   const patient = patientRowToObject(found.rowValues);
-  if (!patient.photoFileId) return { status: 'error', code: 'NO_PHOTO', message: '此傷患沒有照片。' };
+  const idx = Number(photoIndex) || 0;
+  const fileId = (patient.photoFileIds || [])[idx];
+  if (!fileId) return { status: 'error', code: 'NO_PHOTO', message: '此傷患沒有這一張照片。' };
 
   try {
-    const blob = DriveApp.getFileById(patient.photoFileId).getBlob();
+    const blob = DriveApp.getFileById(fileId).getBlob();
     const dataUrl = 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
     return { status: 'success', dataUrl: dataUrl };
   } catch (err) {

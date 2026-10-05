@@ -19,11 +19,14 @@ function createPatient(payload) {
   const triageId = generateNextTriageId(sheet);
   const now = new Date();
 
-  let photoFileId = '';
-  if (payload.photoBase64) {
-    const saved = savePhotoToDrive(incidentId, triageId, payload.photoBase64);
+  // 最多存 CONFIG.MAX_PATIENT_PHOTOS 張（例如傷患本人1張＋傷患紀錄表1~2張），
+  // 超過的直接忽略多出來的部分，不當作錯誤擋下整筆建立。
+  const photosBase64 = Array.isArray(payload.photosBase64) ? payload.photosBase64.slice(0, CONFIG.MAX_PATIENT_PHOTOS) : [];
+  const photoFileIds = [];
+  for (let i = 0; i < photosBase64.length; i++) {
+    const saved = savePhotoToDrive(incidentId, triageId, photosBase64[i]);
     if (saved.error) return saved.error;
-    photoFileId = saved.fileId;
+    photoFileIds.push(saved.fileId);
   }
 
   const colorHistory = [{ time: now.toISOString(), color: color, by: payload.operatorName || '' }];
@@ -38,7 +41,7 @@ function createPatient(payload) {
     age: payload.age || '',
     createdAt: now,
     triageOfficer: payload.operatorName || '',
-    photoFileId: photoFileId,
+    photoFileIds: photoFileIds,
     status: 'ON_SCENE',
     ambulanceCode: '',
     hospitalId: '',
@@ -130,10 +133,19 @@ function updatePatientInfo(payload) {
   p.age = payload.age || '';
   p.note = payload.note || '';
 
-  if (payload.photoBase64) {
-    const saved = savePhotoToDrive(incidentId, p.triageId, payload.photoBase64);
+  // 照片是「保留的既有照片」＋「新增的照片」組成最終清單，不是整批覆蓋——
+  // keepPhotoFileIds 沒送（undefined）代表前端沒有動到照片這一區，維持原本清單不變；
+  // 有送（即使是空陣列，代表使用者把全部既有照片都移除了）就照這份清單處理。
+  // 只接受「原本真的存在於這位傷患名下」的 fileId，避免被夾帶進不相關的檔案ID。
+  if (Array.isArray(payload.keepPhotoFileIds)) {
+    const existingIds = p.photoFileIds || [];
+    p.photoFileIds = payload.keepPhotoFileIds.filter(function (id) { return existingIds.indexOf(id) !== -1; });
+  }
+  const newPhotosBase64 = Array.isArray(payload.newPhotosBase64) ? payload.newPhotosBase64 : [];
+  for (let i = 0; i < newPhotosBase64.length && p.photoFileIds.length < CONFIG.MAX_PATIENT_PHOTOS; i++) {
+    const saved = savePhotoToDrive(incidentId, p.triageId, newPhotosBase64[i]);
     if (saved.error) return saved.error;
-    p.photoFileId = saved.fileId;
+    p.photoFileIds.push(saved.fileId);
   }
 
   updateBlockRow(sheet, BLOCK.PATIENT, found.rowIndex, patientObjectToRow(p));

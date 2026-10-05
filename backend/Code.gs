@@ -19,6 +19,7 @@ const CONFIG = {
   },
 
   INCIDENT_ID_MAX_LEN: 80,
+  MAX_PATIENT_PHOTOS: 3, // 一位傷患最多存幾張照片（例如：傷患本人1張＋傷患紀錄表1~2張）
 };
 
 function getDoc() {
@@ -83,7 +84,7 @@ function doGet(e) {
       case 'getBoardState':
         return respond(getBoardState(params.incidentId, params.passcode));
       case 'getPatientPhoto':
-        return respond(getPatientPhoto(params.incidentId, params.patientId, params.passcode));
+        return respond(getPatientPhoto(params.incidentId, params.patientId, params.passcode, params.photoIndex));
       default:
         return respond({ status: 'error', code: 'UNKNOWN_ACTION', message: '不支援的 action: ' + params.action });
     }

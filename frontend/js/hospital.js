@@ -408,25 +408,36 @@ APP.Hospital.openPatientDetail = function (p, opts) {
     '<div><b>傷情/備註：</b>' + (p.note ? p.note.replace(/</g, '&lt;') : '（無）') + '</div>' +
     '<div><b>分類歷程：</b></div>' + (historyHtml || '<div class="empty-hint" style="padding:2px 0;">無紀錄</div>');
 
-  photoBlock.innerHTML = '<div class="empty-hint">照片載入中...</div>';
+  var photoFileIds = p.photoFileIds || [];
   document.getElementById('patientDetailModal').classList.remove('hidden');
 
-  if (!p.photoFileId) {
+  if (photoFileIds.length === 0) {
     photoBlock.innerHTML = '<div class="empty-hint">此傷患沒有照片。</div>';
     return;
   }
 
+  // 最多3張，逐張各自呼叫 getPatientPhoto（用 photoIndex 指定第幾張），
+  // 每張各自獨立顯示載入中/失敗，不會因為其中一張讀取失敗就擋住其他張。
+  photoBlock.innerHTML = photoFileIds.map(function (fid, idx) {
+    return '<div class="empty-hint" data-photo-slot="' + idx + '" style="margin-bottom:8px;">照片' + (idx + 1) + ' 載入中...</div>';
+  }).join('');
+
   var session = opts.session || APP.Auth.getSession();
-  APP.Api.get('getPatientPhoto', {
-    incidentId: session.incidentId, patientId: p.triageId, passcode: session.passcode,
-  }).then(function (res) {
-    if (res.status !== 'success') {
-      photoBlock.innerHTML = '<div class="empty-hint">' + (res.message || '照片讀取失敗') + '</div>';
-      return;
-    }
-    photoBlock.innerHTML = '<img src="' + res.dataUrl + '" style="width:100%;border-radius:8px;display:block;">';
-  }).catch(function () {
-    photoBlock.innerHTML = '<div class="empty-hint">網路錯誤，照片讀取失敗。</div>';
+  photoFileIds.forEach(function (fid, idx) {
+    APP.Api.get('getPatientPhoto', {
+      incidentId: session.incidentId, patientId: p.triageId, passcode: session.passcode, photoIndex: idx,
+    }).then(function (res) {
+      var slot = photoBlock.querySelector('[data-photo-slot="' + idx + '"]');
+      if (!slot) return;
+      if (res.status !== 'success') {
+        slot.outerHTML = '<div class="empty-hint" data-photo-slot="' + idx + '">照片' + (idx + 1) + '：' + (res.message || '讀取失敗') + '</div>';
+        return;
+      }
+      slot.outerHTML = '<img src="' + res.dataUrl + '" style="width:100%;border-radius:8px;display:block;margin-bottom:8px;">';
+    }).catch(function () {
+      var slot = photoBlock.querySelector('[data-photo-slot="' + idx + '"]');
+      if (slot) slot.outerHTML = '<div class="empty-hint" data-photo-slot="' + idx + '">照片' + (idx + 1) + '：網路錯誤，讀取失敗。</div>';
+    });
   });
 };
 
