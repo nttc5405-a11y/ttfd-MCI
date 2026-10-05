@@ -378,18 +378,43 @@ APP.Hospital.openOverview = function () {
 };
 
 // ─── 傷患詳情（照片＋傷情）：從總覽點傷患開啟 ──────────────────────────
-// opts 可選填 { masked, session }：操作看板／患者卡片等既有呼叫點不帶 opts，
-// 沿用 APP.Board.state.masked + APP.Auth.getSession()；獨立的「醫院總覽（唯讀）」
-// 頁面沒有 APP.Board.state（不會跑 board.js 的輪詢），需要明確帶入自己的遮蔽狀態與登入資訊。
+// opts 可選填 { masked, session, allowEdit }：操作看板／患者卡片／救護車詳情／
+// 操作看板自己的「📊 醫院總覽」彈窗，這些既有呼叫點都不用特別帶 allowEdit
+// （預設 true），沿用 APP.Board.state.masked + APP.Auth.getSession()；
+// 獨立的「醫院總覽（唯讀）」頁面會明確傳 allowEdit:false，不給編輯/重新檢傷，
+// 避免非操作人員誤觸——這是這個頁面存在的目的，不能因為加這兩顆按鈕而破功。
+//
+// 這個彈窗是傷患「送達醫院後」唯一還能編輯資料/重新檢傷的入口：卸下病患
+// （完成交接）後，傷患就不會再出現在患者區或救護車詳情裡，只有這裡（醫院總覽）
+// 還查得到人，所以編輯功能要掛在這裡，不能只靠患者卡片/救護車詳情上的按鈕。
 APP.Hospital.openPatientDetail = function (p, opts) {
   opts = opts || {};
   var masked = ('masked' in opts) ? opts.masked : APP.Board.state.masked;
+  var allowEdit = opts.allowEdit !== false;
 
   document.getElementById('patientDetailTitle').textContent =
     p.triageId + '（' + (COLOR_LABEL[p.color] || p.color) + '色）' + (p.tagNumber ? '　貼紙:' + p.tagNumber : '');
 
   var photoBlock = document.getElementById('patientDetailPhotoBlock');
   var body = document.getElementById('patientDetailBody');
+  var editBtn = document.getElementById('patientDetailEditBtn');
+  var retriageBtn = document.getElementById('patientDetailRetriageBtn');
+
+  if (masked || !allowEdit) {
+    editBtn.classList.add('hidden');
+    retriageBtn.classList.add('hidden');
+  } else {
+    editBtn.classList.remove('hidden');
+    retriageBtn.classList.remove('hidden');
+    editBtn.onclick = function () {
+      document.getElementById('patientDetailModal').classList.add('hidden');
+      APP.PatientForm.openEdit(p, function () { APP.Board.refresh(); });
+    };
+    retriageBtn.onclick = function () {
+      document.getElementById('patientDetailModal').classList.add('hidden');
+      APP.PatientForm.openRetriage(p, function () { APP.Board.refresh(); });
+    };
+  }
 
   if (masked) {
     photoBlock.innerHTML = '';

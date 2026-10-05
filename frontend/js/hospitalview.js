@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var row = ev.target.closest('[data-triage-id]');
       if (!row) return;
       var p = APP.HospitalView.state.patients.find(function (x) { return x.triageId === row.dataset.triageId; });
-      if (p) APP.Hospital.openPatientDetail(p, { masked: false, session: APP.HospitalView.session });
+      if (p) APP.Hospital.openPatientDetail(p, { masked: false, session: APP.HospitalView.session, allowEdit: false });
     });
   }
   var backBtn = document.getElementById('hospitalViewBackBtn');

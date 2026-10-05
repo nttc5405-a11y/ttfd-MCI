@@ -323,7 +323,11 @@
     <div class="font-bold text-lg mb-3" id="patientDetailTitle"></div>
     <div id="patientDetailPhotoBlock" class="mb-3"></div>
     <div id="patientDetailBody" class="text-sm space-y-2"></div>
-    <button id="patientDetailCloseBtn" class="w-full py-2 rounded bg-slate-200 mt-3">關閉</button>
+    <div class="flex gap-2 mt-3">
+      <button id="patientDetailEditBtn" class="hidden flex-1 py-2 rounded bg-slate-700 text-white text-sm font-bold">✏️ 編輯資料</button>
+      <button id="patientDetailRetriageBtn" class="hidden flex-1 py-2 rounded bg-purple-600 text-white text-sm font-bold">🔄 重新檢傷</button>
+    </div>
+    <button id="patientDetailCloseBtn" class="w-full py-2 rounded bg-slate-200 mt-2">關閉</button>
   </div>
 </div>
 
