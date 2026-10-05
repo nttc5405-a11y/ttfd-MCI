@@ -1,7 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
 //  交接單存檔（PDF+簽名）與傷患照片存檔：Google Drive 工具函式
-//  Drive 目錄結構：大傷管理／{案件ID}／傷患照片、交接單
+//  Drive 目錄結構：DAMS_ROOT_FOLDER_ID 指定的資料夾／{案件ID}／傷患照片、交接單
 // ═══════════════════════════════════════════════════════════════
+
+// 所有案件的交接單/照片固定存進使用者指定的這個 Google Drive 資料夾
+// （而不是這支 Apps Script 綁定帳號的「我的雲端硬碟」根目錄），方便使用者
+// 在自己慣用、好找的位置統一管理。資料夾網址：
+// https://drive.google.com/drive/folders/1Q2IzvRo2ZY1m_fI0aHxq1QvE6Tvkd2DW
+const DAMS_ROOT_FOLDER_ID = '1Q2IzvRo2ZY1m_fI0aHxq1QvE6Tvkd2DW';
 
 // 效能說明：每次存照片/交接單都要「找資料夾、找不到才建立」，這種
 // Drive 資料夾搜尋比 Sheets 讀寫慢很多，而且原本每次都要往下找兩層
@@ -31,9 +37,9 @@ function getOrCreateCachedFolder(cacheKey, parentFn, name) {
 }
 
 function getDamsRootFolder() {
-  // 「大傷管理」總資料夾是所有案件共用的同一個，不分案件快取一次就好
-  return getOrCreateCachedFolder('folder_dams_root',
-    function () { return DriveApp.getRootFolder(); }, '大傷管理');
+  // 使用者已經自己建好這個資料夾了，直接用ID取得即可，不用再搜尋/建立一層，
+  // 也不用快取（直接用ID開資料夾本來就快，不像用名稱搜尋那樣需要快取加速）。
+  return DriveApp.getFolderById(DAMS_ROOT_FOLDER_ID);
 }
 
 function getOrCreateIncidentRootFolder(incidentId) {
